@@ -12,7 +12,7 @@ from pathlib import Path
 
 from app import paths
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _NOW = "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
 
@@ -86,6 +86,9 @@ TABLES = {
         volume      REAL,
         source      TEXT NOT NULL,
         fetched_at  TEXT NOT NULL,
+        interval    TEXT,               -- '1d' daily bar, '15m' intraday bar
+        is_delayed  INTEGER NOT NULL DEFAULT 0,
+        currency    TEXT,
         created_at  TEXT NOT NULL DEFAULT {_NOW}
     """,
     "signals": f"""
@@ -150,8 +153,42 @@ TABLES = {
     """,
 }
 
+# Operational tables (not part of the brief's 13 core tables): source health history.
+OPERATIONAL_TABLES = {
+    "adapter_runs": f"""
+        id              INTEGER PRIMARY KEY,
+        adapter         TEXT NOT NULL,
+        started_at      TEXT NOT NULL,
+        finished_at     TEXT,
+        fetch_status    TEXT NOT NULL
+                        CHECK (fetch_status IN ('running', 'ok', 'missing', 'blocked',
+                                                'timeout', 'error')),
+        items_received  INTEGER NOT NULL DEFAULT 0,
+        items_valid     INTEGER NOT NULL DEFAULT 0,
+        message         TEXT,           -- plain-English summary, never a traceback
+        created_at      TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    "quality_scores": f"""
+        id                 INTEGER PRIMARY KEY,
+        adapter            TEXT NOT NULL,
+        computed_at        TEXT NOT NULL,
+        score              REAL,        -- NULL when inputs are unknown
+        success_rate       REAL,
+        freshness          REAL,
+        validation_rate    REAL,
+        note               TEXT,
+        created_at         TEXT NOT NULL DEFAULT {_NOW}
+    """,
+}
+
+# Columns added after schema version 1, applied to older databases on start.
+_ADDED_COLUMNS = {
+    "prices": [("interval", "TEXT"), ("is_delayed", "INTEGER NOT NULL DEFAULT 0"),
+               ("currency", "TEXT")],
+}
+
 # Raw facts are append-only: new versions are inserted, old rows never change.
-APPEND_ONLY_TABLES = ("documents", "passages", "prices", "audit_log")
+APPEND_ONLY_TABLES = ("documents", "passages", "prices", "audit_log", "quality_scores")
 
 
 def connect(path: Path | None = None) -> sqlite3.Connection:
@@ -171,8 +208,20 @@ def init_db(path: Path | None = None) -> Path:
     try:
         conn.execute("PRAGMA journal_mode = WAL")
         with conn:
-            for name, columns in TABLES.items():
+            for name, columns in {**TABLES, **OPERATIONAL_TABLES}.items():
                 conn.execute(f"CREATE TABLE IF NOT EXISTS {name} ({columns})")
+            for name, cols in _ADDED_COLUMNS.items():
+                existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({name})")}
+                for col, decl in cols:
+                    if col not in existing:
+                        conn.execute(f"ALTER TABLE {name} ADD COLUMN {col} {decl}")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_prices_company_ts "
+                "ON prices (company, interval, timestamp)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_runs_adapter ON adapter_runs (adapter, started_at)"
+            )
             for name in APPEND_ONLY_TABLES:
                 for op in ("UPDATE", "DELETE"):
                     conn.execute(

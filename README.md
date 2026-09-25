@@ -6,8 +6,8 @@ fact back to exactly where it came from.
 
 > **Personal research tool. Not investment advice.**
 
-**Current stage: Milestone 0 (Foundation).** The app opens an empty dashboard. Companies
-and prices arrive in Milestone 1.
+**Current stage: Milestone 1 (Companies and prices).** You can import NSE's company list,
+build a watchlist, and see delayed prices with timestamps and freshness badges.
 
 ---
 
@@ -74,6 +74,57 @@ are needed yet.** You'll be told exactly when each one is needed and how to get 
 
 ---
 
+## First use: company list and watchlist
+
+### 1. Import NSE's company list (about once a month)
+
+NSE doesn't allow apps to download from its website automatically, so you download this one
+file yourself:
+
+1. In the app, open **Company list** in the left menu. It links to the NSE page.
+2. On NSE's page, under *Equity segment*, click **Securities available for Equity segment
+   (.csv)**. A file called **EQUITY_L.csv** downloads.
+3. Back in the app, drag that file into the upload box and click **Import this file**.
+   Don't open or edit the file first.
+
+The Data Health page shows the list as **stale** after 35 days, as a reminder to download
+a fresh copy.
+
+### 2. Build your watchlist
+
+Open **Watchlist**, type a name or NSE symbol (e.g. `TCS`), and click **Add**. You can
+track up to 50 companies. Every add and remove is recorded in the audit log.
+
+### 3. Prices
+
+- Prices come from Yahoo Finance and are **delayed by about 15 minutes**. Each card is
+  labelled **"Delayed · Yahoo"**.
+- While the app is running, prices refresh **every 15 minutes during market hours**
+  (09:15–15:30 IST, Monday to Friday) and once more at **15:45** for closing prices.
+- You can also click **Refresh prices now** on the Command Center.
+- Each card shows:
+  - the price and change vs the previous close,
+  - **the time of the price**,
+  - **when the app fetched it**,
+  - a **Current** or **Stale** badge.
+- If a price isn't known, the card says **"Unknown"** and why. It never shows a blank or zero.
+
+**Optional: market holidays.** Open `config.yaml`, find `market_holidays: []`, and list
+NSE's holidays from its yearly holiday circular, like this:
+
+```yaml
+market_holidays:
+  - 2026-10-02
+```
+
+Without this list, prices may show "stale" on a market holiday until the next trading day.
+
+> **Note on Yahoo:** Yahoo's terms don't allow automated access. You chose to use it until
+> your Angel One API is ready; see `DATA_SOURCES.md`. Live Angel One prices will replace it
+> as the main source.
+
+---
+
 ## Daily use
 
 1. Open a terminal in the project folder (Step 3).
@@ -130,10 +181,14 @@ Follow the "what to do" line first.
 | "settings file has a typing mistake" | Undo your last edit to `config.yaml`. In GitHub Desktop you can right-click the file and choose **Discard changes**. |
 | "database is busy" | Another copy of the app is running. Close other terminal windows running it and try again. |
 | The browser didn't open | Copy **http://localhost:8501** into your browser yourself. |
+| "This doesn't look like NSE's equity list" | Upload the file exactly as downloaded: **EQUITY_L.csv**, not opened or saved in Excel. |
+| "Yahoo returned no prices" / "Could not reach Yahoo" | Check your internet. The app retries automatically; the Data Health page shows when it last worked. |
+| "Yahoo is limiting requests" | Nothing to do: wait 15 minutes and it retries on its own. |
+| A price shows **Stale** on a market holiday | Add the holiday to `market_holidays` in `config.yaml` (see above). |
 
 **Still stuck?** Send Claude:
 1. The exact PROBLEM / WHAT TO DO text from the screen, and
-2. The last 20 lines of the newest file in the project's `logs` folder.
+2. The last 20 lines of `logs/mosaic.log`, plus `logs/scheduler.log` if the problem is about prices.
 
 ---
 

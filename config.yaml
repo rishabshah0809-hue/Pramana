@@ -10,18 +10,31 @@ app:
   dashboard_port: 8501
   log_level: INFO
 
-# Companies you track (filled in M1, from the app's watchlist screen)
-watchlist: []
+# Your watchlist is managed on the Watchlist page in the app (stored in the database).
+watchlist:
+  max_companies: 50
 
 # Market hours used by the scheduler (IST), from the product brief
 market_hours:
   open: "09:15"
   close: "15:30"
 
+# NSE trading holidays as dates, e.g. - 2026-10-02
+# Copy them from NSE's yearly holiday circular. Leave empty if unsure: the app then
+# only skips weekends, and on a holiday prices may show "stale" until the next session.
+market_holidays: []
+
+# How old data may get before it is marked stale
+freshness:
+  intraday_price_minutes: 45        # during market hours (Yahoo is ~15 min delayed)
+  company_list_days: 35             # re-download NSE's list about once a month
+
 # How often each data source is fetched (filled in as each adapter is built)
 schedules:
-  prices_live: ""
-  prices_delayed: ""
+  prices_live: ""                  # Angel One — added when your API keys are ready
+  prices_delayed:
+    every_minutes: 15               # during market hours
+    after_close: "15:45"            # one more fetch for the closing prices
   announcements: ""
   shareholding: ""
   insider_trades: ""
@@ -35,7 +48,9 @@ schedules:
   news_rss: ""
 
 # Free-tier request limits per source (filled in as each source is verified)
-rate_limits: {}
+rate_limits:
+  yahoo_prices:
+    max_attempts: 3                 # retries with waits of 2s, 4s, 8s
 
 # AI models. Names live here, never in code, because free-tier models change.
 ai:

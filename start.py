@@ -208,9 +208,15 @@ def run_app():
          "--server.headless", "true"],
         cwd=str(PROJECT_ROOT), stdout=ui_log, stderr=subprocess.STDOUT,
     )
+    sched_log = open(paths.log_dir() / "scheduler.log", "a", encoding="utf-8")
+    scheduler = subprocess.Popen(
+        [sys.executable, "-m", "app.scheduler"],
+        cwd=str(PROJECT_ROOT), stdout=sched_log, stderr=subprocess.STDOUT,
+    )
     try:
         if not wait_until_up(proc, port):
             proc.terminate()
+            scheduler.terminate()
             raise StartupProblem(
                 "The dashboard did not start.",
                 "Run start.py again. If it still fails, send Claude the last lines of "
@@ -220,6 +226,7 @@ def run_app():
         say()
         say("Mosaic India is running at " + url)
         say("Your browser should open by itself. If not, copy that address into your browser.")
+        say("Prices refresh automatically every 15 minutes during market hours.")
         say("Keep this window open while you use the app. Press Ctrl+C here to stop it.")
         webbrowser.open(url)
         proc.wait()
@@ -228,7 +235,10 @@ def run_app():
         say()
         say("Mosaic India stopped.")
     finally:
+        if scheduler.poll() is None:
+            scheduler.terminate()
         ui_log.close()
+        sched_log.close()
     return 0
 
 

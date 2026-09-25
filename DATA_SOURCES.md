@@ -3,16 +3,16 @@
 Every data source, its terms, refresh schedule and known limits. Updated at the end of
 every milestone.
 
-**Status after M0: no source is connected yet.** Before each adapter is written, its
+**Status: Milestone 1 in progress.** Before each adapter is written, its
 current endpoint, terms of use and free-tier limits will be checked. Anything paid,
 blocked or forbidden will be flagged to the owner, with a free alternative proposed,
 before any work continues.
 
 | Source | Provides | Trust tier | Planned refresh | Milestone | Terms verified? | Status |
 |---|---|---|---|---|---|---|
-| NSE / BSE equity lists | Symbol ↔ BSE code ↔ ISIN master | 1 | Daily | M1 | **Checked 25 Sep 2026: restricted, see below** | Waiting for owner decision |
-| Angel One SmartAPI | Live prices, historical candles (needs account + key + TOTP) | 1 | Live, 09:15–15:30 IST | M1 | **Checked 25 Sep 2026: free, official, see below** | Not built |
-| yfinance (`.NS` / `.BO`) | Delayed and end-of-day prices (unofficial library) | 2 | 15 min + daily close | M1 | **Checked 25 Sep 2026: restricted, see below** | Waiting for owner decision |
+| NSE equity list (EQUITY_L.csv) | Symbol ↔ ISIN master | 1 | Monthly, uploaded by the owner | M1 | **Checked 25 Sep 2026: manual download only** | Built: Company list page. App never contacts NSE |
+| Angel One SmartAPI | Live prices, historical candles (needs account + key + TOTP) | 1 | Live, 09:15–15:30 IST | M1 | **Checked 25 Sep 2026: free, official, see below** | Waiting for owner's API keys |
+| yfinance (`.NS`) | Delayed and end-of-day prices (unofficial library) | 2 | 15 min in market hours + 15:45 close | M1 | **Checked 25 Sep 2026: conflicts with Yahoo terms; owner accepted the risk** | Built. Labelled "Delayed · Yahoo" |
 | BSE / NSE corporate announcements | Results, board meetings, presentations, transcripts, orders, ratings | 1 | 15 min in market hours, hourly otherwise | M2 | Not yet | Not built |
 | Shareholding patterns | Promoter / FII / DII / public holdings, pledges | 1 | Quarterly, checked daily | M2 | Not yet | Not built |
 | Insider trading (SEBI PIT) and SAST | Insider buying and selling | 1 | Daily | M2 | Not yet | Not built |
@@ -62,6 +62,26 @@ machine before its adapter goes live.
 - **Upstox instrument file** (possible alternative). A public
   [instruments file](https://upstox.com/developer/api-documentation/instruments/) that
   includes ISIN. Its terms have not been checked yet.
+
+## Owner decisions (25 Sep 2026)
+
+- **Company list:** option A. The owner downloads NSE's `EQUITY_L.csv` in their browser
+  about once a month and uploads it on the Company list page. BSE-only companies are not
+  covered yet.
+- **Prices:** yfinance is used for now, by the owner's explicit choice, despite the
+  Yahoo terms conflict above. It will be replaced as the main source by Angel One once
+  the owner's API keys are ready. Yahoo prices are always labelled "Delayed · Yahoo
+  (tier 2)".
+
+## Internet hosts the app may contact (brief 14.12)
+
+The app refuses any host that isn't in this list (`app/adapters/registry.py`), and a test
+keeps the list and this file in sync.
+
+| Source | Hosts | Last terms check |
+|---|---|---|
+| NSE equity list | none: uploaded by the owner, never fetched | 2026-09-25 |
+| Yahoo (yfinance) | `query1.finance.yahoo.com`, `query2.finance.yahoo.com`, `fc.yahoo.com`, `guce.yahoo.com`, `consent.yahoo.com` | 2026-09-25 |
 
 ## Rules every adapter will follow (brief Section 4)
 

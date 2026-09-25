@@ -45,6 +45,6 @@ def setup_checks() -> list[Check]:
     elif source:
         checks.append(Check("Keys", True, "Using Streamlit secrets (no keys are needed yet)"))
     else:
-        checks.append(Check("Keys", True, "No keys set up yet — none are needed until Milestone 1"))
+        checks.append(Check("Keys", True, "No keys set up yet — none are needed for delayed prices"))
 
     return checks

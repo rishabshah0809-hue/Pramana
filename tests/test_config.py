@@ -6,7 +6,8 @@ from app.errors import FriendlyError
 
 def test_real_config_loads():
     config = load_config()
-    assert config["watchlist"] == []
+    assert config["watchlist"]["max_companies"] == 50
+    assert config["market_holidays"] == []  # never invented; owner fills from NSE
     assert config["market_hours"] == {"open": "09:15", "close": "15:30"}
 
 

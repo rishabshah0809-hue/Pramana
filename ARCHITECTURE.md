@@ -2,8 +2,13 @@
 
 How Mosaic India's parts fit together. Updated at the end of every milestone.
 
-**Status: Milestone 0 (Foundation) complete.** The skeleton, settings, database and an
-empty dashboard exist. Nothing fetches data or calls AI yet.
+**Status: Milestone 1 (Companies and prices) built on `experiment`.** Built so far:
+- the company master, imported from NSE's list, which you upload yourself
+- the watchlist
+- delayed prices from Yahoo, with a background scheduler
+- the Command Center and Data Health pages
+
+Angel One live prices will be added when the owner's API keys are ready. No AI yet.
 
 ## The big picture (from the brief, Section 8)
 
@@ -17,7 +22,7 @@ flowchart LR
   D --> F[Alerts: in-app + Telegram]
 ```
 
-In M0 only the **knowledge store** (empty database) and the **dashboard** exist.
+Built so far: **adapters** (NSE list parser, Yahoo prices), the **raw store** (uploaded NSE files), the **knowledge store** (companies, watchlist, prices), the **scheduler**, and the **dashboard**.
 
 ## What happens when you run `start.py`
 
@@ -31,7 +36,9 @@ In M0 only the **knowledge store** (empty database) and the **dashboard** exist.
    overwrites an existing `.env`.
 5. **Settings and database.** It loads `config.yaml`, then creates `data/mosaic.db` and
    `data/raw/` if missing. This is safe to repeat.
-6. **Dashboard.** It starts Streamlit (`streamlit_app.py`) in the background on the first free port from 8501,
+6. **Scheduler.** It starts `python -m app.scheduler` in the background (log: `logs/scheduler.log`),
+   which refreshes prices every 15 minutes in market hours and at 15:45.
+7. **Dashboard.** It starts Streamlit (`streamlit_app.py`) in the background on the first free port from 8501,
    waits until it answers, then opens the browser. Streamlit's own output goes to
    `logs/dashboard.log`.
 
@@ -78,13 +85,23 @@ So the cloud is for previewing only until the owner decides otherwise. Unexpecte
 | `app/store/db.py` | Creates the 13 tables | Built |
 | `app/services/status.py` | Setup checks shown on the home page | Built |
 | `app/ui/Home.py`, `app/ui/common.py` | Command Center page, shared styling and footer | Empty dashboard |
-| `app/adapters/` | One file per data source | M1+ |
+| `app/adapters/registry.py` | Every source: tier, terms status, and the only internet hosts allowed (14.12) | Built |
+| `app/adapters/nse_equity_list.py` | Reads the uploaded `EQUITY_L.csv`, with ISIN check-digit validation | Built |
+| `app/adapters/yahoo_prices.py` | Delayed daily and 15-minute bars via yfinance, row validation, plain-English failures | Built |
+| `app/net.py` | Network guard: refuses hosts not in the registry | Built |
+| `app/timeutil.py` | IST display, market hours, last expected trading session | Built |
+| `app/scheduler.py` | APScheduler jobs for price refreshes | Built |
+| `app/services/values.py` | Known / Unknown / Not applicable values with reasons (14.1) | Built |
+| `app/services/companies.py`, `watchlist.py`, `audit.py` | Company import, search, watchlist actions, audit log | Built |
+| `app/services/prices.py` | Refresh with retries, append-only storage, quotes with exact decimal change (14.6) | Built |
+| `app/services/health.py` | Fetch status vs content age, quality score formula and history (14.3) | Built |
+| `app/ui/Watchlist.py`, `Companies.py`, `DataHealth.py` | Watchlist, Company list upload, Data Health pages | Built |
 | `app/processing/` | Parse, chunk, extract, verify | M3 |
 | `app/llm/` | Groq and Gemini clients, versioned prompts | M3 |
 | `data/raw/` | Original documents, never modified (git-ignored) | Empty |
 | `data/mosaic.db` | SQLite database (git-ignored) | Created on start |
 | `logs/` | `mosaic.log` (rotating), `dashboard.log`, `install.log`, `startup-error.log` | Created on start |
-| `tests/` | pytest suite; `tests/golden/` holds the M3 golden set | 31 tests |
+| `tests/` | pytest suite; `tests/golden/` holds the M3 golden set | 68 tests; `tests/fixtures/` holds labelled made-up data |
 | `.streamlit/config.toml` | Dark theme, no usage stats, no error details on screen | Built |
 
 ## Database (brief Section 9)
@@ -106,6 +123,37 @@ SQLite in WAL mode, created by `app/store/db.py`. Schema version is 1, stored in
   - `signals.signal_date`, because Section 5 says each signal records a date.
 - **Deferred:** FTS5 full-text search (M5). Signal re-verification history is also deferred
   to M3, where it will be designed as appended status records rather than in-place edits.
+
+## Milestone 1 design notes
+
+- **Prices:** each refresh downloads the last 5 daily bars and the latest 15-minute bar for
+  every watchlist company in two batched Yahoo requests.
+  - Rows failing basic checks (price ≤ 0, high below low, …) are dropped and counted
+    towards the validation rate.
+  - Rows are **appended**. A row identical to one already stored is skipped. Today's daily
+    bar gets a new version each time its values change (point-in-time storage).
+- **Which price is shown:**
+  - During market hours: the latest 15-minute bar.
+  - Otherwise: the latest daily close.
+  - The day change is calculated against the previous session's daily close, using exact
+    `Decimal` maths.
+- **Freshness:**
+  - During market hours, a price is **current** if its bar is within
+    `freshness.intraday_price_minutes` (+15 min for Yahoo's delay).
+  - Outside market hours, it's current if it's from the last expected trading session
+    (weekends and `market_holidays` are skipped).
+- **Quality score:** recorded after every run in `quality_scores` (append-only), using the
+  formula shown on the Data Health page. If any input is missing, the score is "Unknown".
+- **Retries:** up to 3 attempts, waiting 2 s, then 4 s. A run already in progress is never
+  started twice.
+- **Company updates:** the `companies` table is keyed by ISIN. A changed name or symbol
+  updates the row and writes the before/after values to `audit_log`. The original uploaded
+  files are kept unchanged in `data/raw/nse_equity_list/<date>/`.
+- **Schema version 2** adds:
+  - the `adapter_runs` and `quality_scores` tables,
+  - three price columns: `interval`, `is_delayed` and `currency`.
+
+  Older databases are upgraded automatically on start.
 
 ## Error handling rule
 
