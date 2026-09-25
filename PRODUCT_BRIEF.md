@@ -276,10 +276,10 @@ The build runs in seven milestones; each one must work end to end and be demonst
 | M0 Foundation | Project skeleton, `.env.example`, `config.yaml`, database, `start.py`, README setup guide | Run one command and see an empty dashboard |
 | M1 Companies and prices | NSE/BSE company master, watchlist, Angel One and yfinance price adapters, Command Center, Data Health page. v1.1: Known/Unknown/N.A. values (14.1), four timestamps (14.2), two-part freshness and quality score (14.3), exact-ID company matching (14.4), source registry test (14.12) | Add 10 stocks and see live or delayed prices with timestamps |
 | M2 Filings ingestion | BSE/NSE announcements, shareholding, insider, bulk deals, raw store, Document Viewer, company timeline. v1.1: corrections and superseded filings (14.5), exact numbers and cross-source conflicts (14.6) | Open a company and read its latest filings from the original PDFs |
-| M3 AI extraction | Groq and Gemini clients, chunking, extraction, code validation, cross-check, Signal Feed, golden test set. v1.1: company-match review queue (14.4), numbers in signals checked with exact decimal maths (14.6) | See verified signals, each opening the exact highlighted passage |
-| M4 Thesis and evidence | Thesis Builder, Evidence Board, transparent confidence score, kill criteria. v1.1: one rule format (14.7), red-flag checklist, pre-mortem, A/B/C grade (14.8), contradiction flags (14.9), named audited actions (14.11) | Build a thesis with evidence for and against and see its source chain |
+| M3 AI extraction | Groq and Gemini clients, chunking, extraction, code validation, cross-check, Signal Feed, golden test set. v1.1: company-match review queue (14.4), numbers in signals checked with exact decimal maths (14.6), claim type on every signal (14.15) | See verified signals, each opening the exact highlighted passage |
+| M4 Thesis and evidence | Thesis Builder, Evidence Board, transparent confidence score, kill criteria. v1.1: one rule format (14.7), red-flag checklist, pre-mortem, A/B/C grade (14.8), contradiction flags (14.9), named audited actions (14.11), thesis states and refresh conditions (14.16), "Needs your review" inbox (14.17), event expectations setup (14.18) | Build a thesis with evidence for and against and see its source chain |
 | M5 Search and Q&A | Full-text and semantic search, Ask My Research with citations | Ask a question and get a cited answer or "not found in my data" |
-| M6 Alerts and audit | Alert rules, Telegram bot, Time Machine, audit log, macro and news adapters. v1.1: alerts use the 14.7 rule format, thesis drift labels (14.10) | Get an alert for a new filing and replay last month's evidence |
+| M6 Alerts and audit | Alert rules, Telegram bot, Time Machine, audit log, macro and news adapters. v1.1: alerts use the 14.7 rule format, thesis drift labels (14.10), event before/after comparison (14.18) | Get an alert for a new filing and replay last month's evidence |
 
 ### Final deliverables
 
@@ -309,6 +309,8 @@ The prototype is accepted only when every check below passes on the owner's mach
 - *(v1.1)* Every alert, kill-criterion and red-flag rule has passing test examples (14.7).
 - *(v1.1)* A cross-source number conflict is shown with every source's value and is never silently resolved (14.6).
 - *(v1.1)* The code never contacts an internet host that isn't listed in `DATA_SOURCES.md` (14.12).
+- *(v1.1)* Every signal shows its claim type; a company claim is never displayed as a fact (14.15).
+- *(v1.1)* Every thesis state change links to evidence and is in the audit log (14.16).
 
 ## 12. Legal, compliance and known limitations
 
@@ -349,8 +351,8 @@ Claude Code should treat this brief as the source of truth, build one milestone 
 
 ## 14. Enhancements adopted after reference review (v1.1)
 
-*Added 25 Sep 2026 with the owner's approval, after reviewing five open-source projects:
-OpenFoundry, worldmonitor, Akashic, ontology-platform and ai-berkshire. No code is copied
+*Added 25 Sep 2026 with the owner's approval, after reviewing six open-source projects:
+OpenFoundry, worldmonitor, Akashic, ontology-platform, ai-berkshire and Mira (14.15–14.18). No code is copied
 from them; only ideas are adopted. worldmonitor and Akashic are AGPL-licensed, so their
 code must not be copied. Section 2 still overrides everything here.*
 
@@ -572,12 +574,112 @@ A test fails if the code contacts a host that isn't listed.
 *Why this one:* adopted from worldmonitor's auto-generated source attribution, done as a
 simpler test.
 
+### 14.15 Claim type on every signal (M3)
+
+"Verified" (Section 6, step 5) proves only that the quote exists in the source. It does not
+prove the statement is true. Every signal therefore also records a **claim type**:
+
+| Claim type | Example | How it may be used |
+|---|---|---|
+| `fact` | Filed quarterly revenue, auditor resignation letter | Can support a claim directly |
+| `reported_metric` | Order book, deposit growth in a monthly update | Supports a claim; its definition must be noted |
+| `company_claim` | "Demand remains strong" | Management's word only; needs other evidence |
+| `guidance` | "FY27 margin 18–20%" | An expectation input, never a delivered fact |
+| `target` | "₹10,000 crore revenue by 2030" | Strategic intent or scenario only |
+| `commitment` | Signed contract, order with amount and date | Tracked until delivered |
+| `forecast` | Rating agency or third-party projection | An expectation, not a fact |
+| `opinion` | Analyst or media view quoted in a source | Never supports a claim on its own |
+| `market_pricing` | Price move, valuation multiple | Shows what the market prices in, not the fundamentals |
+
+The claim type is set by the extraction step and checked by code where possible; a
+number-backed item from structured XBRL data, for example, is `fact`. It is shown
+as a badge next to the Verified status. The confidence score (Section 5) and evidence grade
+(14.8) weight `fact` and `reported_metric` above `company_claim`, `guidance` and `opinion`,
+and the formula shows these weights.
+
+*Why:* this is adopted from Mira's claim taxonomy. It closes a gap where a correctly
+quoted management claim could look like a verified fact. Mira's rumour and sentiment types
+are not adopted, because v1 doesn't ingest those sources.
+
+### 14.16 Thesis states and refresh conditions (M4)
+
+A thesis has exactly one state:
+
+- `draft`
+- `active`
+- `watch`
+- `upgrade_watch`
+- `downgrade_watch`
+- `stale`
+- `retired`
+
+Every state change is a named, audited action (14.11) that **must link to the evidence
+behind it**. Only the owner changes a state. The one exception is automatic `stale`, below.
+
+Each thesis also records:
+- **`stale_after`**: for example "after next quarterly results" or a date. After this the
+  thesis is automatically marked `stale` until the owner reviews it.
+- **`must_refresh_if`**: conditions written as 14.7 rules, such as a new results filing, a
+  guidance change or a kill-criterion hit. When one fires, the thesis goes to the review
+  inbox (14.17).
+
+*Why:* adopted from Mira's thesis state machine and time policy. It extends Principle 5
+(freshness) from data to conclusions.
+
+### 14.17 Monitoring loop as a "Needs your review" inbox (M4)
+
+When new signals are saved (M3 onward), a monitoring pass runs:
+
+1. **Link.** Code finds every thesis claim the new signal may affect, using company, signal
+   type and the claim's linked signal types. No AI judgement is used.
+2. **Sort.** 14.7 rules place each item in one of three groups:
+   - **Could change a thesis**: e.g. a kill-criterion rule fired, or strong opposite-direction
+     evidence arrived.
+   - **Background**: relevant but minor.
+   - **Filtered**: duplicates, or unmatched or low-trust items. These are kept and can be
+     viewed; nothing is deleted.
+3. **Review.** The Command Center shows a **"Needs your review"** inbox with the source link
+   for each item. The owner can:
+   - attach it as evidence **for** or **against**,
+   - dismiss it (the reason is logged),
+   - change the thesis state (14.16, with evidence required).
+
+The loop runs only when new data arrives, never as a continuously running AI. The AI never
+decides a thesis's impact or state; it only extracts and labels signals as in Section 6.
+
+*Why:* adopted from Mira's monitoring loop, but run by code and owner decisions. Mira's
+agent-run version and its AI-assigned −2…+2 impact score are rejected under Principles 1
+and 3.
+
+### 14.18 Event expectations: before vs after (M4 setup, M6 comparison)
+
+- **Before** a known event (results date, board meeting, or an AGM from the filings
+  calendar), the app prompts: "Write your expectations". The owner records expected
+  direction and key figures per variable (revenue, margin, order book, guidance). The
+  record is locked and timestamped, following Principle 6.
+- **After** the event's filing is ingested, one screen shows side by side:
+  - the owner's locked expectation,
+  - the figures actually filed (from structured data, Section 6 step 8),
+  - management guidance vs the previous guidance,
+  - the price reaction.
+
+  Differences are calculated by code.
+- If there is no free consensus, the screen says **"No consensus available"**. It never
+  shows an estimate. The owner's Street view field (Section 4, known gap) may be used and
+  is labelled as the owner's input.
+
+*Why:* adopted from Mira's event-delta loop. Locking expectations *before* the event stops
+hindsight bias, which is the main way personal research fools itself.
+
 ### 14.13 Considered and deferred to v2
 
 - **India market mood gauge**, from worldmonitor's Fear & Greed design, e.g. India VIX, FII/DII
   flows and breadth. Deferred until the v1 data sources are stable.
 - **Maps and geographic views**, from worldmonitor and Akashic, e.g. plant locations. Not
   needed for v1.
+- **Decision-quality review / postmortem** (Mira): separates good reasoning from luck,
+  market moves and timing after an outcome. It needs months of history first; the M6 Time
+  Machine is its foundation.
 
 ### 14.14 Considered and rejected
 
@@ -591,3 +693,7 @@ simpler test.
 - **Microservice / Postgres / Rust architecture** (OpenFoundry): breaks the one-command local
   setup.
 - **Copying any code from AGPL projects** (worldmonitor, Akashic): licence obligations.
+- **AI-assigned thesis impact scores or AI-decided state changes** (Mira): AI judgement, not evidence (Principles 1 and 3).
+- **Mira's market-data page reads (Yahoo, StockAnalysis), social-sentiment monitoring and
+  sell-side report purchasing**: terms-of-use and paid-source conflicts.
+- **Position-sizing implications** (Mira): investment advice (Section 12).
