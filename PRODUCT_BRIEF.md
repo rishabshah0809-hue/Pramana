@@ -3,6 +3,8 @@
 Sep 26, 2026 · @Khanna Studios
 
 > Transcribed from the owner's PDF brief. This file is the source of truth for the project.
+>
+> **v1.1 (25 Sep 2026):** Section 14 was added with the owner's approval. It lists ideas adopted from five reference projects, placed into the milestones in Section 10.
 
 ## 1. Project summary
 
@@ -272,12 +274,12 @@ The build runs in seven milestones; each one must work end to end and be demonst
 | Milestone | Deliverable | Done when the owner can… |
 |---|---|---|
 | M0 Foundation | Project skeleton, `.env.example`, `config.yaml`, database, `start.py`, README setup guide | Run one command and see an empty dashboard |
-| M1 Companies and prices | NSE/BSE company master, watchlist, Angel One and yfinance price adapters, Command Center, Data Health page | Add 10 stocks and see live or delayed prices with timestamps |
-| M2 Filings ingestion | BSE/NSE announcements, shareholding, insider, bulk deals, raw store, Document Viewer, company timeline | Open a company and read its latest filings from the original PDFs |
-| M3 AI extraction | Groq and Gemini clients, chunking, extraction, code validation, cross-check, Signal Feed, golden test set | See verified signals, each opening the exact highlighted passage |
-| M4 Thesis and evidence | Thesis Builder, Evidence Board, transparent confidence score, kill criteria | Build a thesis with evidence for and against and see its source chain |
+| M1 Companies and prices | NSE/BSE company master, watchlist, Angel One and yfinance price adapters, Command Center, Data Health page. v1.1: Known/Unknown/N.A. values (14.1), four timestamps (14.2), two-part freshness and quality score (14.3), exact-ID company matching (14.4), source registry test (14.12) | Add 10 stocks and see live or delayed prices with timestamps |
+| M2 Filings ingestion | BSE/NSE announcements, shareholding, insider, bulk deals, raw store, Document Viewer, company timeline. v1.1: corrections and superseded filings (14.5), exact numbers and cross-source conflicts (14.6) | Open a company and read its latest filings from the original PDFs |
+| M3 AI extraction | Groq and Gemini clients, chunking, extraction, code validation, cross-check, Signal Feed, golden test set. v1.1: company-match review queue (14.4), numbers in signals checked with exact decimal maths (14.6) | See verified signals, each opening the exact highlighted passage |
+| M4 Thesis and evidence | Thesis Builder, Evidence Board, transparent confidence score, kill criteria. v1.1: one rule format (14.7), red-flag checklist, pre-mortem, A/B/C grade (14.8), contradiction flags (14.9), named audited actions (14.11) | Build a thesis with evidence for and against and see its source chain |
 | M5 Search and Q&A | Full-text and semantic search, Ask My Research with citations | Ask a question and get a cited answer or "not found in my data" |
-| M6 Alerts and audit | Alert rules, Telegram bot, Time Machine, audit log, macro and news adapters | Get an alert for a new filing and replay last month's evidence |
+| M6 Alerts and audit | Alert rules, Telegram bot, Time Machine, audit log, macro and news adapters. v1.1: alerts use the 14.7 rule format, thesis drift labels (14.10) | Get an alert for a new filing and replay last month's evidence |
 
 ### Final deliverables
 
@@ -303,6 +305,10 @@ The prototype is accepted only when every check below passes on the owner's mach
 - No API key appears in code, logs, database or Git history.
 - Data Health shows every adapter's last success and error count.
 - Unit tests cover the validation rules in section 6, step 3, and all pass.
+- *(v1.1)* No displayed field is blank or zero when its value is unknown; it shows "Unknown" with a reason (14.1).
+- *(v1.1)* Every alert, kill-criterion and red-flag rule has passing test examples (14.7).
+- *(v1.1)* A cross-source number conflict is shown with every source's value and is never silently resolved (14.6).
+- *(v1.1)* The code never contacts an internet host that isn't listed in `DATA_SOURCES.md` (14.12).
 
 ## 12. Legal, compliance and known limitations
 
@@ -340,3 +346,248 @@ Claude Code should treat this brief as the source of truth, build one milestone 
 8. Keep `README.md`, `ARCHITECTURE.md` and `DATA_SOURCES.md` updated at the end of every milestone.
 9. Commit to Git after each working step with a clear message, so any change can be undone.
 10. If any instruction here conflicts with section 2, section 2 wins. Flag the conflict to the owner.
+
+## 14. Enhancements adopted after reference review (v1.1)
+
+*Added 25 Sep 2026 with the owner's approval, after reviewing five open-source projects:
+OpenFoundry, worldmonitor, Akashic, ontology-platform and ai-berkshire. No code is copied
+from them; only ideas are adopted. worldmonitor and Akashic are AGPL-licensed, so their
+code must not be copied. Section 2 still overrides everything here.*
+
+Where several projects solved the same problem, one design was chosen. The reason is given
+under **Why this one**.
+
+### 14.1 Every value is Known, Unknown or Not applicable (M1 onward)
+
+Every data field the app displays or scores is in exactly one state:
+
+| State | Rule |
+|---|---|
+| **Known** | Has a value and a source. |
+| **Unknown** | The field applies but has no value yet. It must carry a short reason (for example "source not fetched yet" or "not disclosed in filing"). It can never have a value. |
+| **Not applicable** | The field doesn't apply (for example pledges for a company with no promoter). It must carry a reason. |
+
+An unknown value is never shown as blank, zero, "OK" or green. This puts Principle 4 into
+the data model.
+
+*Why this one:* worldmonitor's contract makes "unknown" explicit and requires a reason. Akashic
+and ai-berkshire leave gaps implicit. Only the explicit version can be tested automatically.
+
+### 14.2 Four separate timestamps (M1 onward)
+
+Section 2 asks for a source time and a fetch time. The source time is split in two, so
+four times are kept wherever the source provides them:
+
+- **event time**: when the thing happened, e.g. the board meeting or the trade
+- **effective time**: when it takes effect, e.g. a record date or a rating's effective date
+- **published time**: when the exchange or publisher released it
+- **fetched time**: when this app downloaded it
+
+Each time is stored separately and never substituted for another. A time the source
+doesn't give is **Unknown** (14.1), not copied from another field. Freshness badges use
+published and fetched time.
+
+*Why this one:* only worldmonitor separates these. It matters in India because companies
+often file results or deal disclosures days after the event, and a single date hides that
+delay.
+
+### 14.3 Two-part freshness and a source quality score (M1 Data Health)
+
+Every source adapter reports two things separately. They are never merged into one
+green/red badge.
+
+1. **Fetch status**: `ok`, `stale`, `missing`, `blocked`, `timeout` or `error`. "Blocked by
+   the website" is never shown as "no new filings".
+2. **Content age**: `current`, `stale`, `partial` or `timestamp unknown`. A successful fetch
+   can still return old content.
+
+Each adapter also gets a **quality score (0–100)** calculated by a formula that is shown on
+the Data Health page:
+
+`40% × fetch success rate (last 7 days) + 30% × content freshness + 30% × validation pass rate`
+
+Every past score is kept, so trends are visible.
+
+*Why this one:* worldmonitor's two-part freshness and Akashic's separate failure states are
+combined into one list. OpenFoundry's quality score is adopted, but its formula measured
+database completeness, which doesn't suit data feeds. The inputs are replaced with ones
+that measure a feed's health.
+
+### 14.4 Company matching: exact IDs first, never automatic fuzzy matches (M1, M3)
+
+Linking a filing, deal or news item to a company follows this order:
+
+1. **ISIN**, if the source provides it.
+2. Exact **NSE symbol or BSE code**, looked up in the official lists.
+3. Exact match against the company's **known names and aliases**.
+4. Fuzzy name matching, used only to *suggest* a match. Fuzzy suggestions go to a
+   **"Needs review"** queue and are never saved as fact until the owner confirms. An
+   unmatched item stays unlinked, which counts as "company cannot be matched" in Section 6,
+   step 3.
+
+*Why this one:* Akashic's "exact ID first, fuzzy second" order is adopted. Its automatic
+acceptance of fuzzy matches is rejected, because it would break Principle 3.
+
+### 14.5 Corrections and superseded filings (M2)
+
+A document can be marked **original**, **revised**, **corrected**, **cancelled** or
+**superseded**, with a link to the document that replaces it. The old version stays stored
+(Principle 6). The Document Viewer shows a banner such as "Superseded by <newer filing>".
+Signals from a superseded document are automatically marked for re-verification (Section 7).
+
+*Why this one:* only worldmonitor models this. Indian filers often issue revised results,
+corrigenda and clarifications, and a plain version number can't say which one is current.
+
+### 14.6 Exact numbers and cross-source checks (M2, M3)
+
+- All money, ratio and percentage calculations use exact decimal maths (Python `Decimal`),
+  never floating-point maths.
+- Numbers are stored with their original text as it appeared in the source, plus the
+  parsed value.
+- Built-in checks such as market cap = price × shares recalculate figures and flag any
+  mismatch.
+- When two sources report the same figure and differ by more than a set tolerance (in
+  `config.yaml`), a **conflict** is recorded:
+  - The value from the **highest-trust source** is displayed, with a visible conflict badge.
+  - The badge lists every source and its value.
+  - The conflict stays open until the owner reviews it.
+
+*Why this one:* ai-berkshire's exact-maths and cross-check tools are adopted. Its habit of
+settling disagreements with a "median consensus" is rejected, because Principle 8 says
+conflicts are flagged and never silently resolved. ai-berkshire's Benford-law fraud test is
+not adopted. It needs hundreds of figures, but a company has only a few dozen quarterly
+figures, so it would produce misleading results.
+
+### 14.7 One rule format for alerts, kill criteria, red flags and data checks (M4, M6)
+
+The brief needs rules in four places:
+- alerts (Section 5, screen 8)
+- thesis kill criteria (Section 5, screen 4)
+- the red-flag checklist (14.8)
+- data-quality checks (14.3)
+
+They all use **one rule format**, stored as readable YAML files in `rules/`. Each rule has:
+
+- `id`, `name`, `severity` (critical, warning or info)
+- `when`: a declarative condition. It may only use functions from an approved list, such as
+  `pledge_change(company, quarters=1)`, `insider_net_sell(company, days=30)`,
+  `signal_exists(company, type, direction, days)` or `price_change(company, days)`. No free
+  code is allowed.
+- `message`: a plain-English sentence filled from the matching data, e.g. "Promoter pledge
+  rose from 4.1% to 9.8% (shareholding filing, 12 Aug)".
+- `explanation` and `references`: why the rule matters.
+- `tests`: example inputs that must trigger the rule and must not. These run in pytest, like
+  the golden set.
+- Thresholds live in a **governed thresholds table** in `config.yaml`, so they can be
+  changed without code.
+
+The app shows every rule as a plain-English sentence. Every alert links to the exact data
+and source that triggered it.
+
+*Why this one:* ontology-platform's rule format is the most readable and the only one with
+built-in test examples. OpenFoundry's quality rules and ai-berkshire's veto checklist were
+simpler designs for the same problem, so one engine replaces three.
+
+### 14.8 Thesis discipline tools (M4 Thesis Builder)
+
+Adapted from ai-berkshire, with one change: every item must be backed by evidence.
+
+- **Red-flag checklist.** Each company is checked against red flags. Some can be checked
+  automatically by rules (14.7), such as:
+  - promoter pledge rising
+  - auditor resignation signal
+  - negative operating cash flow for 3 years, from XBRL data
+  - SEBI or legal order signal
+
+  Others the owner answers manually, such as "Can I explain how this company makes money?".
+  A triggered flag shows its evidence. A flag with no data shows "insufficient evidence",
+  never "passed".
+- **Pre-mortem.** The Thesis Builder has a required "How could this thesis fail?" list. Each
+  item can become a kill criterion (a 14.7 rule).
+- **Evidence coverage grade (A/B/C).** A transparent label computed by a published formula:
+  - **A**: at least 3 Verified tier-1 signals *and* at least 1 against-evidence item reviewed
+  - **B**: at least 1 Verified tier-1 signal
+  - **C**: everything else
+
+  It measures *how much evidence exists*, not whether the thesis is right, and sits beside
+  the confidence score (Section 5).
+
+*Why this one:* the brief's transparent confidence score is kept as the single confidence
+number. Akashic's automatic "truth probability" is rejected: it hides the method and
+resolves contradictions silently. ai-berkshire's "master investor" persona scores and
+buy/sell price ranges are rejected, because they are investment advice (Sections 3 and 12)
+and depend on AI opinion rather than stored evidence (Principle 1).
+
+### 14.9 Contradiction flags (M4)
+
+The app flags a **possible contradiction** when two Verified signals for the same company:
+- have the same signal type,
+- have opposite directions, and
+- fall within a set window (default 180 days, in `config.yaml`).
+
+Both are shown side by side on the Evidence Board for the owner to review. The app never
+decides which is right.
+
+*Why this one:* Akashic's idea of flagging contradictions is adopted. Its keyword-based
+detector is rejected because it produces many false alarms. The brief's structured signal
+type and direction give a precise test instead.
+
+### 14.10 Thesis drift: fact vs price vs no change (M6 Time Machine)
+
+When the owner compares a thesis between two dates, each difference is labelled as one of:
+
+- **Fact change**: new, removed or re-verified evidence, a filing correction (14.5), or a
+  kill criterion hit.
+- **Price change**: price or valuation moved, but no evidence changed.
+- **No change**: nothing material changed.
+
+The comparison uses stored evidence and data, never AI-written wording. A differently
+worded summary can't create "drift".
+
+*Why this one:* adopted from ai-berkshire's thesis-drift method. It is made
+deterministic by comparing database records as of each date (Principle 6), not two AI
+reports.
+
+### 14.11 Named, audited user actions (M4 onward)
+
+Every change the owner makes (add to watchlist, attach evidence, change a weight, confirm
+a company match, resolve a conflict) goes through a named action in `app/services/`. Each
+action:
+- checks its inputs,
+- writes an `audit_log` row with the before and after values,
+- asks for confirmation if it removes or overrides anything.
+
+*Why this one:* adopted from OpenFoundry's "action types". OpenFoundry's microservice
+architecture is rejected, because it would break the one-command local setup.
+
+### 14.12 Source registry stays in sync with the code (M1 onward)
+
+Every internet host an adapter contacts must be listed in `DATA_SOURCES.md` with:
+- its trust tier,
+- its licence or terms status,
+- the date its terms were last checked.
+
+A test fails if the code contacts a host that isn't listed.
+
+*Why this one:* adopted from worldmonitor's auto-generated source attribution, done as a
+simpler test.
+
+### 14.13 Considered and deferred to v2
+
+- **India market mood gauge**, from worldmonitor's Fear & Greed design, e.g. India VIX, FII/DII
+  flows and breadth. Deferred until the v1 data sources are stable.
+- **Maps and geographic views**, from worldmonitor and Akashic, e.g. plant locations. Not
+  needed for v1.
+
+### 14.14 Considered and rejected
+
+- **Automatic truth probabilities** (Akashic): break Principles 3 and 8.
+- **Looking up people's online profiles** (Akashic "recon"): privacy risk, out of scope.
+- **AI web search as a source of facts** (ai-berkshire): breaks Principle 1.
+- **Buy/sell recommendations with price ranges** (ai-berkshire): investment advice
+  (Sections 3 and 12).
+- **Settling conflicts with a median or consensus value** (ai-berkshire): breaks Principle 8.
+- **Scraping social or community sites** (ai-berkshire's Xueqiu scraper): Section 4 terms rule.
+- **Microservice / Postgres / Rust architecture** (OpenFoundry): breaks the one-command local
+  setup.
+- **Copying any code from AGPL projects** (worldmonitor, Akashic): licence obligations.

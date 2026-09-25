@@ -1,6 +1,6 @@
 # CLAUDE.md — Mosaic India
 
-The full product brief is in **[PRODUCT_BRIEF.md](PRODUCT_BRIEF.md)**. It is the source of truth. Read it before any work.
+The full product brief is in **[PRODUCT_BRIEF.md](PRODUCT_BRIEF.md)**. It is the source of truth. Read it before any work, including **Section 14 (v1.1 enhancements)**, which adds requirements to milestones M1–M6.
 
 ## Non-negotiable principles (brief Section 2)
 
