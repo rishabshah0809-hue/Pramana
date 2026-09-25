@@ -1,0 +1,1 @@
+"""Mosaic India application package."""

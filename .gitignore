@@ -1,0 +1,17 @@
+# Your API keys — never uploaded
+.env
+
+# Your data — stays on your computer only
+data/mosaic.db
+data/mosaic.db-*
+data/raw/*
+!data/raw/.gitkeep
+logs/
+backups/
+
+# Python / tools
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
