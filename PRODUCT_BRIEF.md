@@ -1,0 +1,342 @@
+# Mosaic India — Product Brief for Claude Code
+
+Sep 26, 2026 · @Khanna Studios
+
+> Transcribed from the owner's PDF brief. This file is the source of truth for the project.
+
+## 1. Project summary
+
+Mosaic India is a personal, zero-cost research platform that collects public signals on Indian listed companies, extracts evidence with AI, and links every conclusion back to its original source.
+
+The core question it answers: **"For this stock, what does the evidence say, where does it disagree with the market's view, and exactly where did each piece come from?"**
+
+It is inspired by institutional systems. From Palantir Foundry it borrows an ontology (companies, people, suppliers and their links) and data lineage. From BlackRock Aladdin it borrows one consistent "book of record" for all entities. It is not a trading system and places no orders.
+
+**Owner profile:** a non-technical user with intermediate finance knowledge. Claude Code writes all code. Every setup step must be explained in plain English, and the app must run with one command.
+
+### Goals for version 1
+
+1. Track a personal watchlist of 10–50 NSE/BSE companies.
+2. Ingest free, official data automatically on a schedule: prices, exchange filings, earnings-call transcripts, shareholding, insider and bulk deals, news and macro data.
+3. Use Groq and Gemini to summarize documents and extract signals, with every extracted fact verified against its source text.
+4. Let the user build a thesis from claims and evidence, see supporting and contradicting evidence side by side, and set kill criteria.
+5. Keep a full, replayable audit trail of what the system knew and when.
+
+## 2. Non-negotiable principles
+
+These rules override every feature request. If a feature conflicts with them, stop and flag it to the owner.
+
+1. **The AI never supplies facts.** Every number, date, name and quote comes from ingested source data. The AI only reads, extracts, classifies and summarizes what is already stored.
+2. **Every claim is traceable.** Each fact on screen links to its source document, the exact passage, the fetch time and the processing steps applied.
+3. **Verify before display.** AI output is checked by code before it is saved. Quotes must exist verbatim in the source. Numbers must appear in the cited passage.
+4. **"Unknown" is a valid answer.** The system shows "insufficient evidence" rather than guessing. Empty states are better than invented content.
+5. **Show freshness everywhere.** Every data point displays its source timestamp and its fetch timestamp. Stale data is visibly marked.
+6. **Point-in-time storage.** Raw data is never overwritten. New versions are appended, so the user can replay what was known on any past date.
+7. **Contradictions are first-class.** Evidence against a thesis is shown as prominently as evidence for it.
+8. **Official sources outrank secondary sources.** Exchange filings beat news articles. News beats blogs. Conflicts between sources are flagged, never silently resolved.
+
+*Note for the owner: no system can guarantee zero AI errors. This design makes errors rare, detectable and traceable, which is how institutional systems handle the same problem.*
+
+## 3. Scope and constraints
+
+Version 1 is a single-user app that runs on the owner's own computer, costs nothing, and covers Indian equities only.
+
+| Area | In scope (v1) | Out of scope (v1) |
+|---|---|---|
+| Users | One person, local machine | Logins, teams, clients, cloud hosting |
+| Markets | NSE and BSE listed equities | F&O analytics, commodities, currency, global stocks |
+| Cost | Free tiers and free public data only | Paid data vendors, paid APIs |
+| AI | Groq and Gemini free tiers | Paid LLMs, fine-tuning |
+| Actions | Research, alerts, notes | Placing trades, investment advice |
+| Platform | Windows or macOS laptop, Python | Mobile app |
+
+Owner constraints Claude Code must respect:
+
+- The owner cannot debug code. Errors must show plain-English messages with a suggested fix.
+- Setup must be a short checklist: install Python, copy `.env.example` to `.env`, paste API keys, run one start command.
+- All API keys live only in `.env`, never in code, logs or the database.
+- Free-tier rate limits must be respected automatically, with queuing and retries rather than crashes.
+
+## 4. Data sources
+
+All v1 sources are free and public; official exchange and regulator data is the backbone, and news is supporting context only.
+
+| Source | What it provides | Access method | Refresh | Trust tier |
+|---|---|---|---|---|
+| Angel One SmartAPI | Live prices (LTP, OHLC, depth), historical candles | Official API; free with an Angel One account, needs API key + TOTP | Live in market hours (09:15–15:30 IST) | 1 |
+| yfinance (`.NS` / `.BO` tickers) | Delayed and end-of-day prices, fallback | Unofficial Python library | Every 15 min + daily close | 2 |
+| BSE / NSE corporate announcements | Results, board meetings, investor presentations, earnings-call transcripts, orders won, rating changes | Exchange websites and public endpoints | Every 15 min in market hours, hourly otherwise | 1 |
+| Shareholding patterns | Promoter, FII, DII, public holdings and promoter pledges | Exchange filings | Quarterly, checked daily | 1 |
+| Insider trading (SEBI PIT) and SAST disclosures | Promoter and insider buying or selling | Exchange filings | Daily | 1 |
+| Bulk and block deals | Large institutional trades | Exchange daily reports | Daily after close | 1 |
+| FII / DII daily activity | Net institutional flows in cash market | NSE daily report | Daily after close | 1 |
+| XBRL financial results | Structured quarterly P&L and balance sheet | Exchange filings | Quarterly | 1 |
+| AMFI mutual fund portfolios | Which funds hold which stocks | AMFI monthly disclosures | Monthly | 1 |
+| Macro: RBI DBIE, MOSPI, PIB | Repo rate, CPI, IIP, GDP, GST collections | Official sites and downloads | Monthly | 1 |
+| Company monthly business updates | Auto sales, cement volumes, bank deposit and loan growth | Exchange filings | Monthly | 1 |
+| Credit rating releases (CRISIL, ICRA, CARE) | Rating actions and rationale | Public press releases | Daily | 1 |
+| News RSS (ET Markets, Business Standard, Livemint, Google News) | Headlines, links, short snippets | RSS feeds only | Every 30 min | 3 |
+
+Rules for ingestion:
+
+- Store every raw document (PDF, HTML, JSON) with its URL, publish time, fetch time and a content hash before any processing.
+- Wrap each source in its own adapter module with a health check. Community libraries such as `nselib`, `jugaad-data` and `bsedata` are unofficial and can break without notice.
+- Scrape politely: identify a user agent, cache responses, rate-limit to a few requests per second at most, and back off on errors.
+- Do not scrape sites whose terms forbid it (for example Screener.in, Naukri, LinkedIn). Job-posting and patent signals are deferred to v2.
+- For news, store only headline, link, date and snippet. Never store or redistribute full articles.
+- Verify the current terms, pricing and endpoints of every source during the build, because these change often.
+
+**Known gap: consensus estimates.** There is no reliable free source for Indian analyst consensus. v1 provides a manual "Street view" field per company, plus a tracker of management's own guidance from filings and transcripts.
+
+## 5. Features
+
+Version 1 has ten screens, built in the order listed in section 10.
+
+| # | Screen | What it does |
+|---|---|---|
+| 1 | Command Center (home) | Watchlist cards with price, day change, newest signal and a freshness badge; top 20 new signals; data health summary |
+| 2 | Company page | Price chart, filings timeline, shareholding trend, pledges, insider and bulk deals, AI document summaries with citations, management guidance tracker |
+| 3 | Signal Feed | One stream of all extracted signals, filterable by company, type, direction, source tier and date |
+| 4 | Thesis Builder | Write a thesis, attach claims and evidence (for and against), set horizon and kill criteria, compare "my view" with "Street view" |
+| 5 | Evidence Board | Visual map of thesis → claims → evidence → sources; click any node to see the source passage |
+| 6 | Document Viewer | Original filing or transcript with cited passages highlighted |
+| 7 | Ask My Research | Questions answered only from stored documents, with citations; replies "not found in my data" otherwise |
+| 8 | Alerts | Rules such as new filing, pledge increase, insider selling, price move, kill criterion hit; in-app plus optional free Telegram bot |
+| 9 | Time Machine and Audit Log | Replay the evidence as of any past date; log of every ingestion, AI call and user edit |
+| 10 | Data Health | Status, last success and error count for each source adapter and each AI provider |
+
+### Signal types to extract
+
+Each signal records type, direction (positive, negative, neutral), strength (1–5), company, date, source link and exact passage.
+
+| Signal type | Example | Why it matters |
+|---|---|---|
+| Management guidance | "FY27 margin guidance raised to 18–20%" | Direct view of expected earnings |
+| Demand commentary | "Order book at record level" | Early read on revenue |
+| Cost and margin | "Raw material costs eased this quarter" | Margin direction |
+| Capex and expansion | "New plant commissioning in Q3" | Future capacity |
+| Governance red flag | Auditor resignation, related-party deal, pledge increase | Risk that overrides good numbers |
+| Ownership change | Promoter buying, FII stake rising, MF new entry | Informed money moving |
+| Order win or contract | Large order announced to exchange | Revenue visibility |
+| Credit rating action | Upgrade, downgrade, outlook change | Balance-sheet health |
+| Regulatory or legal | SEBI order, tax demand, litigation | Downside risk |
+| Tone shift | Management language more cautious than last quarter | Soft, early signal (marked low reliability) |
+
+### Thesis confidence
+
+Confidence is a transparent score, never a black box. Each piece of evidence gets a weight from source tier, directness to the claim, recency and user rating. The screen shows the formula and every input, and the user can override any weight.
+
+## 6. AI layer and anti-hallucination pipeline
+
+Groq does fast first-pass extraction, Gemini handles long documents and independently checks Groq's work, and plain code has the final say on what gets saved.
+
+### Provider roles
+
+| Task | Primary | Fallback | Why |
+|---|---|---|---|
+| Signal extraction from filings and news | Groq | Gemini | Fast, good at structured JSON |
+| Long document summaries (transcripts, annual reports) | Gemini | Groq, chunked | Long context window, reads PDFs |
+| Verification of extracted claims | Gemini | Groq with a different model | A second model catches the first one's errors |
+| Ask My Research answers | Gemini | Groq | Grounded answers over retrieved passages |
+| Embeddings for search | Local `sentence-transformers` model | Gemini embeddings | Free, offline, no rate limits |
+
+Model names, temperatures and rate limits live in `config.yaml`, never in code, because free-tier models change. Gemini's free tier may use inputs to improve Google's products, so only public data is sent to it; the owner's private thesis notes are not.
+
+### The pipeline, step by step
+
+1. **Chunk.** Split each document into passages, keeping page number and character offsets.
+2. **Extract.** Temperature 0, strict JSON schema. Every item must include the exact source quote and chunk ID. The prompt says: if it is not stated in the text, return nothing.
+3. **Validate in code.** Reject the item if the JSON is invalid, the quote is not found verbatim in the chunk, any number in the claim is missing from the quote, or the company cannot be matched.
+4. **Cross-check.** Gemini is asked only "Does this passage support this claim? Yes, partly or no?" Disagreement marks the item "Needs review".
+5. **Label.** Each item gets one status: Verified (passed code and cross-check), Unverified (passed code only), or Rejected (kept in a log, never shown as fact).
+6. **Summarize with citations.** Every summary sentence carries a chunk citation. Sentences without a valid citation are removed, and the summary shows its citation coverage.
+7. **Answer questions from retrieval only.** Q&A searches stored passages first. If no passage scores above a threshold, the answer is "not found in my data".
+8. **Keep numbers out of the AI.** Prices, ratios and financials are read from structured data and displayed by code, never retyped by a model.
+9. **Log every call.** Provider, model, prompt version, input hash, output, validation result and time.
+
+### Updating knowledge
+
+The models' own training knowledge is never used as a source. The platform's knowledge is the database, refreshed by scheduled jobs (section 4). A company page is therefore only as current as its last successful fetch, which is always displayed.
+
+### Quality measurement
+
+Claude Code builds a golden test set of 20 filings and transcripts with hand-checked expected signals. Every prompt change is scored on it. Target: at least 95% of Verified items are correct, and 0 fabricated quotes.
+
+## 7. Traceability model
+
+Every conclusion in the app sits at the top of a six-level chain, and the user can click down from any level to the raw source or up from any source to every thesis it affects.
+
+```mermaid
+flowchart TD
+  T[Thesis: margins beat Street by FY27] --> C1[Claim: input costs falling]
+  T --> C2[Claim: pricing holds]
+  C1 --> E1[Evidence FOR: CFO comment on raw material costs]
+  C1 --> E2[Evidence AGAINST: new wage settlement]
+  E1 --> S1[Signal: cost and margin, positive, strength 4]
+  S1 --> D1[Source: Q2 earnings-call transcript, page 7]
+  D1 --> R1[Raw file: PDF, URL, fetch time, hash]
+```
+
+| Level | What it stores | Required links |
+|---|---|---|
+| Thesis | Statement, horizon, my view, Street view, kill criteria, status | One or more claims |
+| Claim | A testable statement that supports the thesis | Evidence for and against |
+| Evidence | A signal attached to a claim, with direction and user weight | Exactly one signal |
+| Signal | Extracted fact, type, strength, verification status | Exactly one source passage |
+| Source passage | Exact quote, page, character offsets | One document |
+| Raw document | Original file, URL, publish time, fetch time, content hash | None (the root) |
+
+**Lineage rules:** a signal cannot exist without a passage, and a passage cannot exist without a raw document. If a source document is updated, the new version is stored alongside the old, and affected signals are flagged for re-verification.
+
+## 8. Architecture and tech stack
+
+The app is a single Python project with five layers, a local SQLite database and a background scheduler, started together by one command.
+
+```mermaid
+flowchart LR
+  A[Source adapters] --> B[Raw store: files + metadata]
+  B --> C[Processing: parse, chunk, AI extract, verify]
+  C --> D[Knowledge store: entities, signals, evidence, theses]
+  D --> E[Streamlit dashboard]
+  S[Scheduler] --> A
+  D --> F[Alerts: in-app + Telegram]
+```
+
+| Layer | Technology | Notes |
+|---|---|---|
+| Language | Python 3.11+ | One language for everything, easiest for Claude Code to maintain |
+| Dashboard | Streamlit + Plotly | Pure Python UI; dark, dense, institutional styling via custom CSS. Final choice for v1; a React front end is a v2 option once the core is stable |
+| Evidence graph | `streamlit-agraph` or `pyvis` | Clickable thesis chain |
+| Database | SQLite (WAL mode) with FTS5 full-text search | One file, no server, easy backup |
+| Vector search | ChromaDB (local) | Semantic search over passages |
+| Raw file store | `data/raw/<source>/<date>/` on disk | Original PDFs and JSON, never modified |
+| Scheduler | APScheduler | Market-hours aware (IST, NSE holiday calendar) |
+| PDF parsing | PyMuPDF, `pdfplumber` fallback | Keeps page numbers for citations |
+| Data validation | Pydantic | Every AI output parsed against a schema |
+| AI clients | `groq` and `google-genai` SDKs behind one `LLMClient` interface | Swap providers and models via config |
+| Alerts | `python-telegram-bot` (optional) | Free push notifications |
+| Tests | pytest | Unit tests plus the golden AI test set |
+| Logging | Python `logging` to rotating files | Plain-English errors on screen, details in logs |
+
+### Folder structure
+
+```
+mosaic-india/
+  README.md            # plain-English setup and daily use
+  PRODUCT_BRIEF.md     # this document
+  .env.example         # API key placeholders
+  config.yaml          # models, schedules, rate limits, watchlist
+  start.py             # one command: launches scheduler + dashboard
+  app/
+    adapters/          # one file per data source
+    processing/        # parsing, chunking, extraction, verification
+    llm/               # Groq and Gemini clients, prompts (versioned)
+    store/             # database models and queries
+    services/          # thesis, signals, alerts, search logic
+    ui/                # Streamlit pages
+  data/
+    raw/               # original documents
+    mosaic.db          # SQLite database
+  tests/
+    golden/            # hand-checked test documents
+```
+
+The business logic sits in `services/`, not in the UI. That keeps an upgrade path open to a React front end or a hosted version later without rewriting the core.
+
+## 9. Data model
+
+Thirteen core tables hold the ontology, the evidence chain and the audit trail; every row carries `created_at`, and nothing factual is ever updated in place.
+
+| Table | Key fields | Purpose |
+|---|---|---|
+| companies | ISIN (primary key), NSE symbol, BSE code, name, aliases, sector, industry | One canonical entity per company |
+| relationships | company_a, company_b, type (supplier, customer, subsidiary, competitor), source_passage_id | The ontology links, each with a source |
+| people | name, role, company, from_date, to_date | Promoters, directors, key managers |
+| watchlist | company, added_on, notes | What the owner tracks |
+| prices | company, timestamp, OHLCV, source | Market data |
+| documents | id, source, URL, type, company, published_at, fetched_at, content_hash, file_path, version | Raw document register |
+| passages | id, document_id, page, char_start, char_end, text | Citable chunks |
+| signals | id, company, type, direction, strength, claim_text, passage_id, status, model, prompt_version | Extracted facts |
+| theses | id, company, statement, horizon, my_view, street_view, status, kill_criteria | Investment theses |
+| claims | id, thesis_id, statement | Testable parts of a thesis |
+| evidence | id, claim_id, signal_id, stance (for or against), user_weight, note | Links signals to claims |
+| alerts | id, rule, company, triggered_at, signal_id, seen | Alert history |
+| audit_log | timestamp, actor (system, AI or user), action, object, before, after | Full audit trail |
+
+Companies are identified by ISIN, because NSE symbols can change after mergers or renames. The app loads the official NSE and BSE equity lists to map symbols and codes to ISINs.
+
+## 10. Milestones and deliverables
+
+The build runs in seven milestones; each one must work end to end and be demonstrated to the owner before the next begins.
+
+| Milestone | Deliverable | Done when the owner can… |
+|---|---|---|
+| M0 Foundation | Project skeleton, `.env.example`, `config.yaml`, database, `start.py`, README setup guide | Run one command and see an empty dashboard |
+| M1 Companies and prices | NSE/BSE company master, watchlist, Angel One and yfinance price adapters, Command Center, Data Health page | Add 10 stocks and see live or delayed prices with timestamps |
+| M2 Filings ingestion | BSE/NSE announcements, shareholding, insider, bulk deals, raw store, Document Viewer, company timeline | Open a company and read its latest filings from the original PDFs |
+| M3 AI extraction | Groq and Gemini clients, chunking, extraction, code validation, cross-check, Signal Feed, golden test set | See verified signals, each opening the exact highlighted passage |
+| M4 Thesis and evidence | Thesis Builder, Evidence Board, transparent confidence score, kill criteria | Build a thesis with evidence for and against and see its source chain |
+| M5 Search and Q&A | Full-text and semantic search, Ask My Research with citations | Ask a question and get a cited answer or "not found in my data" |
+| M6 Alerts and audit | Alert rules, Telegram bot, Time Machine, audit log, macro and news adapters | Get an alert for a new filing and replay last month's evidence |
+
+### Final deliverables
+
+- Working local app started by `python start.py`.
+- Full source code in a Git repository with clear commit history.
+- `README.md`: plain-English setup, daily use and troubleshooting.
+- `ARCHITECTURE.md`: how the parts fit, kept up to date.
+- `DATA_SOURCES.md`: every source, its terms, refresh schedule and known limits.
+- Automated tests, including the golden AI test set and its latest score.
+- A backup script that copies `mosaic.db` and `data/raw/` to a dated folder.
+
+## 11. Acceptance criteria and tests
+
+The prototype is accepted only when every check below passes on the owner's machine.
+
+- Fresh install works by following the README alone, with no coding.
+- Every signal, summary sentence and Q&A answer opens its exact source passage in one click.
+- Zero fabricated quotes on the golden test set; at least 95% of Verified signals are correct.
+- A question with no answer in the data returns "not found in my data", tested with 10 such questions.
+- Every price and data point shows source and timestamp; data older than its refresh window shows a "stale" badge.
+- Turning off the internet, a bad API key or a rate limit produces a plain-English message, not a crash.
+- Time Machine shows the evidence board exactly as it stood on a chosen past date.
+- No API key appears in code, logs, database or Git history.
+- Data Health shows every adapter's last success and error count.
+- Unit tests cover the validation rules in section 6, step 3, and all pass.
+
+## 12. Legal, compliance and known limitations
+
+The platform is for personal research on public information only; sharing it with others or selling insights later would bring SEBI and data-licensing rules into play.
+
+Compliance rules built into the app:
+
+- Only public information is ingested. The app never stores or processes material non-public information (MNPI). A manual note field warns the user not to record tips or inside information.
+- Each document is tagged with its source type and licence terms. Exchange market data from broker APIs is for the account holder's personal use and must not be redistributed.
+- Every screen carries a footer: "Personal research tool. Not investment advice."
+- If the owner later shares research publicly or with paying users, SEBI rules on research analysts and investment advisers may apply. Get professional advice before that step.
+
+Known limitations of v1:
+
+| Limitation | Effect | Mitigation |
+|---|---|---|
+| No free consensus estimates | Edge versus Street is partly manual | Manual Street view field, management guidance tracker |
+| Unofficial exchange endpoints | Adapters can break when NSE or BSE change their sites | Health checks, alerts on failure, fallback sources |
+| Free-tier AI rate limits | Large backlogs process slowly | Queue, prioritise watchlist companies, cache results |
+| Scanned PDFs without text | Extraction may fail | OCR fallback, flagged as lower confidence |
+| Real-time prices need an Angel One account | Without it, prices are delayed | yfinance fallback, clearly labelled "delayed" |
+| AI can still misread context | A verified quote may be interpreted wrongly | Cross-check, user review, transparent confidence |
+
+## 13. Working instructions for Claude Code
+
+Claude Code should treat this brief as the source of truth, build one milestone at a time, and explain every step to a non-technical owner.
+
+1. Save this brief as `PRODUCT_BRIEF.md` in the project root. Create a `CLAUDE.md` that summarises section 2 and points to this file.
+2. Before writing code for a milestone, show a short plan in plain English and wait for the owner's approval.
+3. Build only the current milestone. Do not add features outside this brief without asking.
+4. After each milestone, run the tests, then give the owner a numbered list of what to click to confirm it works.
+5. Verify every data source's current endpoint, terms and free-tier limits before writing its adapter. If a source is paid, blocked or forbids access, stop and propose a free alternative.
+6. Never invent data, sample values or fake API responses in the running app. Test fixtures are allowed only inside `tests/` and must be labelled as fixtures.
+7. When the owner reports a problem, ask for the on-screen message and the last lines of the log file, then fix the cause and explain it simply.
+8. Keep `README.md`, `ARCHITECTURE.md` and `DATA_SOURCES.md` updated at the end of every milestone.
+9. Commit to Git after each working step with a clear message, so any change can be undone.
+10. If any instruction here conflicts with section 2, section 2 wins. Flag the conflict to the owner.
