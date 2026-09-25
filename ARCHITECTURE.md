@@ -31,11 +31,34 @@ In M0 only the **knowledge store** (empty database) and the **dashboard** exist.
    overwrites an existing `.env`.
 5. **Settings and database.** It loads `config.yaml`, then creates `data/mosaic.db` and
    `data/raw/` if missing. This is safe to repeat.
-6. **Dashboard.** It starts Streamlit in the background on the first free port from 8501,
+6. **Dashboard.** It starts Streamlit (`streamlit_app.py`) in the background on the first free port from 8501,
    waits until it answers, then opens the browser. Streamlit's own output goes to
    `logs/dashboard.log`.
 
-Any failure becomes a **PROBLEM / WHAT TO DO** message. Unexpected errors are written to
+Any failure becomes a **PROBLEM / WHAT TO DO** message.
+
+## Streamlit entrypoint (works with or without `start.py`)
+
+`streamlit_app.py` is the one Streamlit entrypoint. It's used by `start.py`, by a plain
+`streamlit run streamlit_app.py`, and by Streamlit Community Cloud.
+
+1. It sets up the page and styling.
+2. It calls `app/bootstrap.ensure_ready()`, which loads `.env` if present, sets up logging and
+   creates the database. This is cached with `st.cache_resource`, so it runs once per database.
+3. It registers pages with `st.navigation`. Each screen is a file in `app/ui/`, and new screens
+   are added to the `pages` list.
+4. It draws the footer.
+
+**Keys:** `app/keys.get_key(name)` reads the environment and `.env` first, then Streamlit
+secrets (`.streamlit/secrets.toml` locally, or the Secrets box on Streamlit Cloud). Both
+`.env` and `.streamlit/secrets.toml` are git-ignored.
+
+**Streamlit Cloud caveats:**
+- Its storage is wiped on restart, which conflicts with point-in-time storage (principle 6).
+- A public app would redistribute broker data (Section 12).
+- Cloud hosting is out of scope for v1 (Section 3).
+
+So the cloud is for previewing only until the owner decides otherwise. Unexpected errors are written to
 `logs/startup-error.log` and are never printed as tracebacks.
 
 ## Folder map
@@ -43,6 +66,10 @@ Any failure becomes a **PROBLEM / WHAT TO DO** message. Unexpected errors are wr
 | Path | Purpose | Status |
 |---|---|---|
 | `start.py` | The one start command | Built |
+| `streamlit_app.py` | Streamlit entrypoint and page navigation | Built |
+| `app/bootstrap.py` | First-load setup: `.env`, logging, database | Built |
+| `app/keys.py` | Reads keys from `.env` or Streamlit secrets | Built |
+| `.streamlit/secrets.toml.example` | Key placeholders for Streamlit Cloud | Placeholders |
 | `config.yaml` | Models, schedules, rate limits, watchlist (no secrets) | Empty slots |
 | `.env.example` → `.env` | API keys, only ever in `.env` (git-ignored) | Placeholders |
 | `app/paths.py` | Where files live (tests can redirect via `MOSAIC_*` env vars) | Built |
@@ -57,7 +84,7 @@ Any failure becomes a **PROBLEM / WHAT TO DO** message. Unexpected errors are wr
 | `data/raw/` | Original documents, never modified (git-ignored) | Empty |
 | `data/mosaic.db` | SQLite database (git-ignored) | Created on start |
 | `logs/` | `mosaic.log` (rotating), `dashboard.log`, `install.log`, `startup-error.log` | Created on start |
-| `tests/` | pytest suite; `tests/golden/` holds the M3 golden set | 27 tests |
+| `tests/` | pytest suite; `tests/golden/` holds the M3 golden set | 31 tests |
 | `.streamlit/config.toml` | Dark theme, no usage stats, no error details on screen | Built |
 
 ## Database (brief Section 9)

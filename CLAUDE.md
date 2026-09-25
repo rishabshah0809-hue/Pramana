@@ -29,11 +29,13 @@ These override every feature request. If a task conflicts with them, stop and fl
 ## Git branches
 
 - Only two branches exist: **`main`** and **`experiment`**. Never create any other branch.
-- All work happens on `experiment`. The owner promotes accepted work to `main` themselves. Never push to `main`.
+- All work happens on `experiment`. Push to `main` only when the owner explicitly asks (e.g. "push to both").
 
 ## Practical notes
 
-- API keys live only in `.env` (git-ignored). Never in code, logs, the database or Git history.
+- API keys live only in `.env` or `.streamlit/secrets.toml` (both git-ignored). Never in code, logs, the database or Git history.
 - Model names, temperatures, schedules and rate limits live in `config.yaml`, never in code.
 - Business logic goes in `app/services/`, not `app/ui/`.
+- The Streamlit entrypoint is `streamlit_app.py`; add new screens as files in `app/ui/` and register them in its `pages` list.
+- Read keys only through `app/keys.get_key()` (supports `.env` and Streamlit secrets).
 - Run tests with `python -m pytest`.

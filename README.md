@@ -85,6 +85,37 @@ are needed yet.** You'll be told exactly when each one is needed and how to get 
 
 ---
 
+## Other ways to run it (optional)
+
+`start.py` is the easiest way. The dashboard is a standard Streamlit app, so these work too:
+
+**Directly with Streamlit** (after `start.py` has run once, so the packages are installed):
+
+| Windows | Mac |
+|---|---|
+| `.venv\Scripts\streamlit run streamlit_app.py` | `.venv/bin/streamlit run streamlit_app.py` |
+
+**On Streamlit Community Cloud** (free, runs in the browser without your computer):
+
+1. Go to https://share.streamlit.io and sign in with GitHub.
+2. Click **Create app**, then choose to deploy from GitHub.
+3. Repository: **rishabshah0809-hue/Pramana**. Branch: **main** or **experiment**. Main file path: **streamlit_app.py**.
+4. Open **Advanced settings** and pick Python **3.11** or newer.
+5. Click **Deploy**.
+6. **Keys:** don't upload `.env`. In the app's **Settings → Secrets**, paste the lines from
+   `.streamlit/secrets.toml.example` with your keys filled in. None are needed yet.
+
+> **Read before using the cloud version for real research.** The brief plans v1 as an app on
+> your own computer. On Streamlit Cloud:
+> - The database is **wiped whenever the app restarts or updates**, so history can't be replayed.
+> - An app may be **visible to anyone with the link**, which isn't allowed for broker price
+>   data (Angel One data is for your personal use only).
+>
+> It's fine for previewing the design now. Before real data arrives (Milestone 1 onwards),
+> keep using `start.py` on your computer unless we agree a plan for these two issues.
+
+---
+
 ## If something goes wrong
 
 The app never shows you programmer error messages. It shows **PROBLEM** and **WHAT TO DO**.

@@ -1,10 +1,11 @@
-"""Basic setup checks shown on the dashboard (database, settings, keys file)."""
+"""Basic setup checks shown on the dashboard (database, settings, keys)."""
 
 from dataclasses import dataclass
 
 from app import paths
 from app.config import load_config
 from app.errors import FriendlyError
+from app.keys import key_source
 from app.store import db
 
 
@@ -32,14 +33,18 @@ def setup_checks() -> list[Check]:
         )
     else:
         checks.append(
-            Check("Database", False, "Not created yet. What to do: run start.py to create it.")
+            Check(
+                "Database", False,
+                "Not created yet. What to do: reload this page; if it stays, restart the app.",
+            )
         )
 
-    if paths.env_path().exists():
-        checks.append(Check("Keys file (.env)", True, "Found (no keys are needed yet)"))
+    source = key_source()
+    if source == ".env":
+        checks.append(Check("Keys", True, "Using the .env file (no keys are needed yet)"))
+    elif source:
+        checks.append(Check("Keys", True, "Using Streamlit secrets (no keys are needed yet)"))
     else:
-        checks.append(
-            Check("Keys file (.env)", False, "Missing. What to do: run start.py to create it.")
-        )
+        checks.append(Check("Keys", True, "No keys set up yet — none are needed until Milestone 1"))
 
     return checks

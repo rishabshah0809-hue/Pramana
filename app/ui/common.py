@@ -8,7 +8,7 @@ FOOTER_TEXT = "Personal research tool. Not investment advice."
 
 _CSS = """
 <style>
-  .block-container { padding-top: 2rem; max-width: 1200px; }
+  .block-container { padding-top: 2rem; padding-bottom: 3rem; max-width: 1200px; }
   .mosaic-subtitle { color: #8B949E; margin-top: -0.6rem; }
   .mosaic-footer {
       position: fixed; left: 0; bottom: 0; width: 100%;
@@ -20,8 +20,7 @@ _CSS = """
 """
 
 
-def page_setup(title: str) -> None:
-    st.set_page_config(page_title=f"{title} · Mosaic India", layout="wide")
+def apply_style() -> None:
     st.markdown(_CSS, unsafe_allow_html=True)
 
 

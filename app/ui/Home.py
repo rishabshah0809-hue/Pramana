@@ -1,18 +1,13 @@
-"""Command Center (home page). Empty in M0 — the watchlist arrives in M1."""
+"""Command Center (home page). Empty in M0 — the watchlist arrives in M1.
 
-import sys
-from pathlib import Path
+Opened through streamlit_app.py, which handles page setup, styling and footer.
+"""
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+import streamlit as st
 
-import streamlit as st  # noqa: E402
-
-from app.errors import report, setup_logging  # noqa: E402
-from app.services.status import setup_checks  # noqa: E402
-from app.ui.common import footer, page_setup, show_error  # noqa: E402
-
-page_setup("Command Center")
-setup_logging()
+from app.errors import report
+from app.services.status import setup_checks
+from app.ui.common import show_error
 
 st.title("Mosaic India")
 st.markdown(
@@ -33,5 +28,3 @@ try:
         st.markdown(f"{icon} **{check.label}** — {check.detail}")
 except Exception as exc:  # never show a traceback to the owner
     show_error(report(exc))
-
-footer()

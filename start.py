@@ -203,7 +203,7 @@ def run_app():
     paths.log_dir().mkdir(parents=True, exist_ok=True)
     ui_log = open(paths.log_dir() / "dashboard.log", "a", encoding="utf-8")
     proc = subprocess.Popen(
-        [sys.executable, "-m", "streamlit", "run", str(PROJECT_ROOT / "app" / "ui" / "Home.py"),
+        [sys.executable, "-m", "streamlit", "run", str(PROJECT_ROOT / "streamlit_app.py"),
          "--server.port", str(port), "--server.address", "localhost",
          "--server.headless", "true"],
         cwd=str(PROJECT_ROOT), stdout=ui_log, stderr=subprocess.STDOUT,

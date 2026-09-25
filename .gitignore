@@ -1,5 +1,6 @@
 # Your API keys — never uploaded
 .env
+.streamlit/secrets.toml
 
 # Your data — stays on your computer only
 data/mosaic.db
