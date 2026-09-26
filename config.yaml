@@ -100,9 +100,7 @@ ai:
     openai/gpt-oss-20b:  {rpm: 30, rpd: 1000, tpm: 8000, tpd: 200000, day: rolling}
     # Gemini free limits as shown in the owner's AI Studio on 26 Sep 2026 (per project).
     gemini-3.8-flash:      {rpm: 5,  rpd: 20, tpm: 250000, tpd: "", day: pacific_midnight}
-    # 3.1 Flash-Lite was not in the AI Studio list the owner sent; these copy the listed
-    # Flash-Lite model (2.5) and stay marked as placeholders until confirmed.
-    gemini-3.1-flash-lite: {rpm: 10, rpd: 20, tpm: 250000, tpd: "", day: pacific_midnight, placeholder: true}
+    gemini-3.1-flash-lite: {rpm: 15, rpd: 500, tpm: 250000, tpd: "", day: pacific_midnight}
   safety_margin: 0.9              # use at most 90% of each limit
 
   processing:
