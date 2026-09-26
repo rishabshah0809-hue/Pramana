@@ -146,7 +146,8 @@ class AIUnavailable(FriendlyError):
 
 
 def _record_call(provider, model, prompt: Prompt, task, input_hash, output, outcome,
-                 tokens_in=0, tokens_out=0, blocked_until=None, message=None) -> int:
+                 tokens_in=0, tokens_out=0, blocked_until=None, message=None,
+                 reserved=0) -> int:
     conn = db.connect()
     try:
         with conn:
@@ -154,7 +155,8 @@ def _record_call(provider, model, prompt: Prompt, task, input_hash, output, outc
                 "provider": provider, "model": model, "prompt_version": prompt.label,
                 "input_hash": input_hash, "output": output, "outcome": outcome,
                 "tokens_in": tokens_in, "tokens_out": tokens_out,
-                "blocked_until": blocked_until, "message": message})
+                "blocked_until": blocked_until, "message": message,
+                "tokens_reserved": reserved})
             return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     finally:
         conn.close()
@@ -214,7 +216,7 @@ def call(task: str, prompt_name: str, parts: dict, exclude_provider: str | None 
                 blocked = to_iso(until)
                 resume.append(until)
             call_id = _record_call(provider, model, prompt, task, input_hash, None, exc.kind,
-                                   blocked_until=blocked, message=exc.message)
+                                   blocked_until=blocked, message=exc.message, reserved=est)
             log.warning("AI call failed (%s %s): %s", provider, model, exc.message)
             if exc.kind == "invalid_output":
                 return LLMResult(call_id, provider, model, prompt, None, "", exc.message)
@@ -227,7 +229,7 @@ def call(task: str, prompt_name: str, parts: dict, exclude_provider: str | None 
             parsed, outcome = None, "invalid_output"
             problem = f"The answer did not match the required format ({exc.error_count()} problem(s))."
         call_id = _record_call(provider, model, prompt, task, input_hash, raw.text, outcome,
-                               raw.tokens_in, raw.tokens_out)
+                               raw.tokens_in, raw.tokens_out, reserved=est)
         return LLMResult(call_id, provider, model, prompt, parsed, raw.text, problem)
     raise AIUnavailable(reasons or ["no AI provider is set up for this task"],
                         min(resume) if resume else None)

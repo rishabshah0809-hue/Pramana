@@ -50,8 +50,10 @@ def day_resets_at(model: str, now: datetime, lim: dict, calls: list) -> datetime
     return from_iso(calls[0][0]) + timedelta(hours=24) if calls else now
 
 
-def _calls(model: str, since: datetime) -> list[tuple[str, int, str, str | None]]:
-    """(time, tokens, outcome, blocked_until) for every call to this model since `since`."""
+def _calls(model: str, since: datetime) -> list[tuple[str, int, str, str | None, int]]:
+    """(time, tokens used, outcome, blocked_until, tokens reserved) for every call since `since`.
+    Providers count a call's reserved answer length against per-minute limits, so the minute
+    window uses the larger of used and reserved."""
     conn = db.connect()
     try:
         rows = conn.execute(
@@ -64,7 +66,8 @@ def _calls(model: str, since: datetime) -> list[tuple[str, int, str, str | None]
     for r in rows:
         a = json.loads(r["after"])
         out.append((r["timestamp"], int(a.get("tokens_in") or 0) + int(a.get("tokens_out") or 0),
-                    a.get("outcome", "ok"), a.get("blocked_until")))
+                    a.get("outcome", "ok"), a.get("blocked_until"),
+                    int(a.get("tokens_reserved") or 0)))
     return out
 
 
@@ -75,7 +78,7 @@ def usage(model: str, now: datetime | None = None) -> dict:
     day = [c for c in day if from_iso(c[0]) >= day_start(model, now, lim)]
     minute = [c for c in day if from_iso(c[0]) >= now - timedelta(minutes=1)]
     return {"model": model, "requests_day": len(day), "tokens_day": sum(c[1] for c in day),
-            "requests_min": len(minute), "tokens_min": sum(c[1] for c in minute),
+            "requests_min": len(minute), "tokens_min": sum(max(c[1], c[4]) for c in minute),
             "errors_day": sum(c[2] not in ("ok", "invalid_output") for c in day),
             "limits": lim, "calls": day}
 
@@ -85,7 +88,7 @@ def check(model: str, est_tokens: int, now: datetime | None = None) -> Verdict:
     lim = model_limits(model)
     u = usage(model, now)
     m = lim["margin"]
-    for _, _, _, blocked in reversed(u["calls"]):
+    for _, _, _, blocked, _ in reversed(u["calls"]):
         if blocked and from_iso(blocked) > now:
             return Verdict(False, resume_at=from_iso(blocked),
                            reason=f"{model} asked the app to slow down")
