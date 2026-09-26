@@ -4,7 +4,7 @@ from streamlit.testing.v1 import AppTest
 
 from app import paths
 from app.services import prices, watchlist
-from app.ui.common import FOOTER_TEXT, fmt_inr, fmt_signed
+from app.ui.common import APP_NAME, FOOTER_TEXT, fmt_inr, fmt_signed
 from tests.conftest import fake_yahoo_frame
 
 APP = str(Path(__file__).resolve().parent.parent / "streamlit_app.py")
@@ -25,7 +25,7 @@ def test_dashboard_loads_empty_and_creates_database(temp_dirs):
     at = run()
     assert not at.exception
     assert paths.db_path().exists()  # works without start.py (e.g. Streamlit Cloud)
-    assert at.title[0].value == "Mosaic India"
+    assert at.title[0].value == APP_NAME == "Pramana"
     assert "Start here" in at.info[0].value
     assert FOOTER_TEXT in all_text(at)
     assert "Insufficient evidence" in all_text(at)     # no invented signals

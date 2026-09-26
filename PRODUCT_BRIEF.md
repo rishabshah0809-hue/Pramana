@@ -4,6 +4,8 @@ Sep 26, 2026 · @Khanna Studios
 
 > Transcribed from the owner's PDF brief. This file is the source of truth for the project.
 >
+> **Name and look (26 Sep 2026, owner's decision):** the product is now called **Pramana**. The dashboard uses a light, minimal design with a blue palette instead of the dark styling in Section 8.
+>
 > **v1.1 (25 Sep 2026):** Section 14 was added with the owner's approval. It lists ideas adopted from five reference projects, placed into the milestones in Section 10.
 
 ## 1. Project summary
@@ -207,7 +209,7 @@ flowchart LR
 | Layer | Technology | Notes |
 |---|---|---|
 | Language | Python 3.11+ | One language for everything, easiest for Claude Code to maintain |
-| Dashboard | Streamlit + Plotly | Pure Python UI; dark, dense, institutional styling via custom CSS. Final choice for v1; a React front end is a v2 option once the core is stable |
+| Dashboard | Streamlit + Plotly | Pure Python UI; light, minimal blue styling via custom CSS (changed from dark on 26 Sep 2026, owner's decision). Final choice for v1; a React front end is a v2 option once the core is stable |
 | Evidence graph | `streamlit-agraph` or `pyvis` | Clickable thesis chain |
 | Database | SQLite (WAL mode) with FTS5 full-text search | One file, no server, easy backup |
 | Vector search | ChromaDB (local) | Semantic search over passages |

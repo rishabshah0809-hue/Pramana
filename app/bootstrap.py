@@ -14,7 +14,7 @@ from app.store.db import init_db
 
 @st.cache_resource(show_spinner=False)
 def _prepare(db_path: str) -> bool:
-    setup_logging().info("Preparing Mosaic India (database at %s)", db_path)
+    setup_logging().info("Preparing Pramana (database at %s)", db_path)
     load_env_file()
     init_db()
     return True

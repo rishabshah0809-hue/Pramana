@@ -7,9 +7,10 @@ from app.errors import FriendlyError, report
 from app.services import documents, filings, watchlist
 from app.services.rawstore import STATUSES
 from app.timeutil import IST, fmt_ist, from_iso
-from app.ui.common import show_error
+from app.ui.common import card_head, esc, md, page_header, show_error, tag
 
-st.title("Document Viewer")
+page_header("Document Viewer", "The original filing exactly as fetched, with its source, times, "
+                               "version and status.", crumb="Research")
 
 PAGES_PER_VIEW = 5
 STATUS_BADGE = {"original": ("Original", "green"), "revised": ("Revised", "orange"),
@@ -70,9 +71,10 @@ def _viewer(doc_id: int):
         return
     f = doc["filing"]
     title = (f and f["subject"]) or documents.filename(doc)
-    st.subheader(title)
     status = doc["status"]
     label, color = STATUS_BADGE[status["status"]]
+    md(card_head(title, f"{doc['company_name'] or 'Not linked to a company'} · "
+                        f"{documents.filename(doc)}", "doc", tag(label, color)))
     if status["status"] == "superseded" and status["superseded_by"]:
         st.error(f"**Superseded** by document {status['superseded_by']}. {status['reason']}")
         st.page_link("app/ui/DocumentViewer.py", label="Open the newer document",
@@ -80,15 +82,18 @@ def _viewer(doc_id: int):
     elif status["status"] != "original":
         st.warning(f"**{label}.** {status['reason']}")
 
-    cols = st.columns(3)
-    cols[0].markdown(f"**Company**  \n{doc['company_name'] or 'Not linked to a company'}")
-    cols[0].markdown(f"**Type**  \n{filings.CATEGORY_LABELS.get(doc['type'], doc['type'])}")
-    cols[1].markdown("**Published**  \n" + _time(doc["published_at"],
-                                                 "the source gave no published time"))
-    cols[1].markdown(f"**Fetched**  \n{fmt_ist(from_iso(doc['fetched_at']))}")
-    cols[2].markdown(f"**Source**  \n{doc['source']}"
-                     + (f" · {f['exchange']} ({f['feed']})" if f else ""))
-    cols[2].markdown(f"**Version**  \n{doc['version']} · :{color}-badge[{label}]")
+    def cell(name, value, unknown=False):
+        return f'<div class="{"unk" if unknown else ""}"><small>{esc(name)}</small><b>{esc(value)}</b></div>'
+
+    source = doc["source"] + (f" · {f['exchange']} ({f['feed']})" if f else "")
+    md('<div class="pm-kv">'
+       + cell("Company", doc["company_name"] or "Not linked to a company", not doc["company_name"])
+       + cell("Type", filings.CATEGORY_LABELS.get(doc["type"], doc["type"]))
+       + cell("Source", source)
+       + cell("Published", _time(doc["published_at"], "the source gave no published time"),
+              not doc["published_at"])
+       + cell("Fetched", fmt_ist(from_iso(doc["fetched_at"])))
+       + cell("Version", f"{doc['version']} · {label}") + "</div>")
     st.caption(f"Original URL: {doc['url']}  \nSHA-256: `{doc['content_hash']}` · Stored as "
                f"`data/{doc['file_path']}`  \nTerms: {doc['licence'] or 'Unknown'}")
     if f and f["published_raw"]:
@@ -170,10 +175,11 @@ try:
     tab_view, tab_list, tab_upload = st.tabs(["Document", "All documents", "Add a filing"])
     with tab_view:
         if doc_param and str(doc_param).isdigit():
-            _viewer(int(doc_param))
+            with st.container(border=True, key="card-doc"):
+                _viewer(int(doc_param))
         else:
             st.info("Open a filing from a company's page, or pick one under **All documents**.")
-    with tab_list:
+    with tab_list, st.container(border=True, key="card-alldocs"):
         items = watchlist.list_items()
         pick = st.selectbox("Company", [None] + items,
                             format_func=lambda i: "All companies" if i is None else i["name"])
@@ -187,7 +193,8 @@ try:
                          label=f"{fmt_ist(from_iso(when))} · {d['company_name'] or '—'} · "
                                f"{filings.CATEGORY_LABELS.get(d['type'], d['type'])} · "
                                f"v{d['version']} · #{d['id']}")
-    with tab_upload:
+    with tab_upload, st.container(border=True, key="card-upload"):
+        md(card_head("Add a filing", None, "upload"))
         _upload()
 except FriendlyError as err:
     show_error(err)

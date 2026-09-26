@@ -1,4 +1,4 @@
-# CLAUDE.md — Mosaic India
+# CLAUDE.md — Pramana (formerly Mosaic India)
 
 The full product brief is in **[PRODUCT_BRIEF.md](PRODUCT_BRIEF.md)**. It is the source of truth. Read it before any work, including **Section 14 (v1.1 enhancements)**, which adds requirements to milestones M1–M6.
 

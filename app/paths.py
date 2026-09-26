@@ -1,4 +1,4 @@
-"""Where Mosaic India keeps its files.
+"""Where Pramana keeps its files.
 
 MOSAIC_DATA_DIR / MOSAIC_LOG_DIR / MOSAIC_CONFIG can override the defaults
 (used by tests so they never touch the owner's real data).

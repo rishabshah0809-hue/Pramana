@@ -1,4 +1,4 @@
-"""Mosaic India — the one command to start everything.
+"""Pramana — the one command to start everything.
 
     Windows:  python start.py
     Mac:      python3 start.py
@@ -56,7 +56,7 @@ def check_python_version(version=None):
     version = version or sys.version_info[:2]
     if tuple(version) < MIN_PYTHON:
         raise StartupProblem(
-            "Mosaic India needs Python %d.%d or newer, but this computer is using Python %d.%d."
+            "Pramana needs Python %d.%d or newer, but this computer is using Python %d.%d."
             % (MIN_PYTHON + tuple(version)),
             "Install the latest Python from https://www.python.org/downloads/ "
             "(see README.md, step 1), close this window, and run start.py again.",
@@ -96,7 +96,7 @@ def ensure_venv():
 
     if STAMP_FILE.exists() and STAMP_FILE.read_text().strip() == requirements_hash():
         return
-    say("Installing the packages Mosaic India needs. The first time this takes a few minutes...")
+    say("Installing the packages Pramana needs. The first time this takes a few minutes...")
     result = subprocess.run(
         [str(venv_python()), "-m", "pip", "install", "--disable-pip-version-check",
          "-q", "-r", str(REQUIREMENTS)],
@@ -107,7 +107,7 @@ def ensure_venv():
         log_dir.mkdir(exist_ok=True)
         (log_dir / "install.log").write_text(result.stdout + "\n" + result.stderr, encoding="utf-8")
         raise StartupProblem(
-            "Could not install the packages Mosaic India needs.",
+            "Could not install the packages Pramana needs.",
             "Check that you are connected to the internet and run start.py again. If it "
             "still fails, send Claude the file logs/install.log.",
         )
@@ -159,7 +159,7 @@ def pick_port(preferred):
             return port
     raise StartupProblem(
         "Could not find a free port to open the dashboard on.",
-        "Close other copies of Mosaic India (or restart your computer), then run start.py again.",
+        "Close other copies of Pramana (or restart your computer), then run start.py again.",
     )
 
 
@@ -185,7 +185,7 @@ def run_app():
 
     try:
         logger = setup_logging()
-        logger.info("Starting Mosaic India")
+        logger.info("Starting Pramana")
         ensure_env_file()
         config = load_config()
         logger.setLevel(config.get("app", {}).get("log_level", "INFO"))
@@ -224,7 +224,7 @@ def run_app():
             )
         url = "http://localhost:%d" % port
         say()
-        say("Mosaic India is running at " + url)
+        say("Pramana is running at " + url)
         say("Your browser should open by itself. If not, copy that address into your browser.")
         say("Prices refresh automatically every 15 minutes during market hours.")
         say("Keep this window open while you use the app. Press Ctrl+C here to stop it.")
@@ -233,7 +233,7 @@ def run_app():
     except KeyboardInterrupt:
         proc.terminate()
         say()
-        say("Mosaic India stopped.")
+        say("Pramana stopped.")
     finally:
         if scheduler.poll() is None:
             scheduler.terminate()

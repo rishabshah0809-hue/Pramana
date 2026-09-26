@@ -76,6 +76,11 @@ def open_conflicts(company: str) -> list[dict]:
         conn.close()
 
 
+def open_count(companies: list[str]) -> int:
+    """How many conflicts are still waiting for the owner's review, across these companies."""
+    return sum(len(open_conflicts(c)) for c in companies)
+
+
 def mark_reviewed(conflict_id: int, note: str = "") -> None:
     conn = db.connect()
     try:

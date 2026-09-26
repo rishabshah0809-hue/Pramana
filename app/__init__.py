@@ -1,1 +1,1 @@
-"""Mosaic India application package."""
+"""Pramana application package."""

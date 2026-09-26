@@ -1,6 +1,6 @@
 # Architecture
 
-How Mosaic India's parts fit together. Updated at the end of every milestone.
+How Pramana's parts fit together (the app was called Mosaic India until 26 Sep 2026). Updated at the end of every milestone.
 
 **Status: Milestone 2 (Filings ingestion) built on `experiment`.** Built so far:
 - the company master, from NSE's and BSE's lists, which you upload yourself
@@ -67,9 +67,24 @@ Any failure becomes a **PROBLEM / WHAT TO DO** message.
 1. It sets up the page and styling.
 2. It calls `app/bootstrap.ensure_ready()`, which loads `.env` if present, sets up logging and
    creates the database. This is cached with `st.cache_resource`, so it runs once per database.
-3. It registers pages with `st.navigation`. Each screen is a file in `app/ui/`, and new screens
-   are added to the `pages` list.
-4. It draws the footer.
+3. It registers pages with `st.navigation`, grouped into sidebar sections ("Research",
+   "Setup"). Each screen is a file in `app/ui/`; new screens are added to the `pages` dict.
+4. It draws the sidebar extras (upcoming screens, market-hours card) and the footer.
+
+## Look and feel (Pramana design, 26 Sep 2026)
+
+- **Theme:** `.streamlit/config.toml` sets a light theme with a blue palette
+  (#03045E, #0077B6, #00B4D8, #90E0EF, #CAF0F8), rounded corners and the Inter / JetBrains Mono
+  fonts. The fonts load from Google Fonts in the browser; offline, the system font is used.
+- **Shared styling:** `app/ui/common.py` holds the CSS and small HTML helpers: cards
+  (`st.container(border=True, key="card-...")`), `card_head`, `tag`, `fresh`, `kpi`,
+  `sparkline`, `gauge`, `empty_state`. They only display values from `app/services`; a missing
+  value shows "Unknown" or an empty state.
+- **Charts:** `app/ui/charts.py` (Altair). Shareholding is drawn as separate lines, never
+  stacked, because "Public (total)" already includes the institutions.
+- **Colour means something:** green/red only for up/down, amber only for stale or needing a
+  look, red for errors. Everything else is blue or grey.
+- **Logo:** `app/ui/assets/logo.svg` and `icon.svg`.
 
 **Keys:** `app/keys.get_key(name)` reads the environment and `.env` first, then Streamlit
 secrets (`.streamlit/secrets.toml` locally, or the Secrets box on Streamlit Cloud). Both
@@ -99,7 +114,8 @@ So the cloud is for previewing only until the owner decides otherwise. Unexpecte
 | `app/config.py` | Loads and checks `config.yaml` | Built |
 | `app/store/db.py` | Creates the 13 tables | Built |
 | `app/services/status.py` | Setup checks shown on the home page | Built |
-| `app/ui/Home.py`, `app/ui/common.py` | Command Center page, shared styling and footer | Empty dashboard |
+| `app/ui/Home.py`, `app/ui/common.py` | Command Center (summary tiles, watchlist cards, filing-activity grid, data health), shared styling and footer | Built |
+| `app/ui/charts.py`, `app/ui/assets/` | Chart styles; Pramana logo and icon | Built |
 | `app/adapters/registry.py` | Every source: tier, terms status, and the only internet hosts allowed (14.12) | Built |
 | `app/adapters/nse_equity_list.py` | Reads the uploaded `EQUITY_L.csv`, with ISIN check-digit validation | Built |
 | `app/adapters/yahoo_prices.py` | Delayed daily and 15-minute bars via yfinance, row validation, plain-English failures | Built |
@@ -127,8 +143,8 @@ So the cloud is for previewing only until the owner decides otherwise. Unexpecte
 | `data/raw/` | Original documents, never modified (git-ignored): `<source>/<IST date>/<name>_<hash>.<ext>`; feed files are gzip-compressed | Filled by M2 |
 | `data/mosaic.db` | SQLite database (git-ignored) | Created on start |
 | `logs/` | `mosaic.log` (rotating), `dashboard.log`, `install.log`, `startup-error.log` | Created on start |
-| `tests/` | pytest suite; `tests/golden/` holds the M3 golden set | 97 tests; `tests/fixtures/` holds labelled made-up data |
-| `.streamlit/config.toml` | Dark theme, no usage stats, no error details on screen | Built |
+| `tests/` | pytest suite; `tests/golden/` holds the M3 golden set | 102 tests; `tests/fixtures/` holds labelled made-up data |
+| `.streamlit/config.toml` | Light blue Pramana theme and fonts, no usage stats, no error details on screen | Built |
 
 ## Database (brief Section 9)
 

@@ -35,17 +35,17 @@ def explain(exc: BaseException) -> FriendlyError:
     log_hint = f"the log file at {paths.log_dir() / LOG_FILE_NAME}"
     if isinstance(exc, sqlite3.OperationalError) and "locked" in str(exc).lower():
         return FriendlyError(
-            "The database is busy (another copy of Mosaic India may be open).",
-            "Close any other Mosaic India windows or terminals, then run start.py again.",
+            "The database is busy (another copy of Pramana may be open).",
+            "Close any other Pramana windows or terminals, then run start.py again.",
         )
     if isinstance(exc, sqlite3.DatabaseError):
         return FriendlyError(
             "The database file could not be read.",
-            f"Restart Mosaic India. If it happens again, send Claude the last lines of {log_hint}.",
+            f"Restart Pramana. If it happens again, send Claude the last lines of {log_hint}.",
         )
     if isinstance(exc, PermissionError):
         return FriendlyError(
-            "Mosaic India was not allowed to read or write one of its files.",
+            "Pramana was not allowed to read or write one of its files.",
             "Make sure the project folder is not open in another program and that it "
             "is not in a read-only location, then try again.",
         )
@@ -56,7 +56,7 @@ def explain(exc: BaseException) -> FriendlyError:
         )
     return FriendlyError(
         "Something unexpected went wrong.",
-        f"Restart Mosaic India. If it happens again, send Claude the on-screen message "
+        f"Restart Pramana. If it happens again, send Claude the on-screen message "
         f"and the last lines of {log_hint}.",
     )
 

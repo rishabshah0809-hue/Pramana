@@ -7,19 +7,24 @@ from app.adapters.nse_equity_list import DOWNLOAD_PAGE
 from app.errors import FriendlyError, report
 from app.services import companies
 from app.timeutil import fmt_ist, from_iso
-from app.ui.common import show_error
+from app.ui.common import card_head, page_header, show_error, tag
 
-st.title("Company list")
+page_header("Company list", "The list of listed companies your watchlist is built from. You "
+                            "download it yourself; the app never fetches it.", crumb="Setup")
 
 try:
     last = companies.last_import()
     n = companies.company_count()
+    card = st.container(border=True, key="card-nse")
+    card.markdown(card_head("NSE equity list", "EQUITY_L.csv · about 1 minute, once a month",
+                            "upload", tag("Trust tier 1", "blue")), unsafe_allow_html=True)
     if last:
-        st.markdown(f"**{n:,} companies** · last imported {fmt_ist(from_iso(last['fetched_at']))}")
+        card.markdown(f"**{n:,} companies** · last imported "
+                      f"{fmt_ist(from_iso(last['fetched_at']))}")
     else:
-        st.markdown("**No company list imported yet.**")
+        card.markdown("**No company list imported yet.**")
 
-    with st.expander("How to get the file (about 1 minute, once a month)", expanded=not last):
+    with card.expander("How to get the file (about 1 minute, once a month)", expanded=not last):
         st.markdown(
             f"NSE's terms don't allow apps to download from its website automatically, so "
             f"you download this one file yourself:\n\n"
@@ -30,8 +35,8 @@ try:
             f"The original file is kept unchanged in `data/raw/nse_equity_list/`."
         )
 
-    upload = st.file_uploader("Upload EQUITY_L.csv", type=["csv"])
-    if upload is not None and st.button("Import this file", type="primary"):
+    upload = card.file_uploader("Upload EQUITY_L.csv", type=["csv"])
+    if upload is not None and card.button("Import this file", type="primary"):
         with st.spinner("Checking and importing…"):
             s = companies.import_equity_list(upload.getvalue(), upload.name)
         if s.already_imported:

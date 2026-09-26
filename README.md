@@ -1,4 +1,7 @@
-# Mosaic India
+# Pramana
+
+*Called Mosaic India until 26 Sep 2026. Internal names (the `mosaic.db` database, `MOSAIC_*`
+settings, the web user agent) are unchanged so existing data keeps working.*
 
 A personal research app for Indian listed companies (NSE/BSE). It gathers free,
 official public data, uses AI only to read and summarise that data, and links every
@@ -61,7 +64,7 @@ Type this and press **Enter**:
 | `python start.py` | `python3 start.py` |
 
 The **first time**, it spends a few minutes installing what it needs. Then your web browser
-opens the Mosaic India dashboard at **http://localhost:8501**.
+opens the Pramana dashboard at **http://localhost:8501**.
 
 Keep the terminal window open while you use the app. To stop the app, click the terminal window
 and press **Ctrl + C** (or just close the window).

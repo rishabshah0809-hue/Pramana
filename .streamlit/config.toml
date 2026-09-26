@@ -1,10 +1,47 @@
 [theme]
-base = "dark"
-primaryColor = "#4F8BF9"
-backgroundColor = "#0E1117"
-secondaryBackgroundColor = "#161B22"
-textColor = "#E6EDF3"
-font = "sans serif"
+# Pramana design: light, calm blue palette (#03045E #0077B6 #00B4D8 #90E0EF #CAF0F8).
+# Page-level styling (cards, sidebar, tags) lives in app/ui/common.py.
+base = "light"
+primaryColor = "#0077B6"
+backgroundColor = "#F3F7FB"
+secondaryBackgroundColor = "#EEF4FA"
+textColor = "#0A1733"
+linkColor = "#0077B6"
+linkUnderline = false
+borderColor = "#E2EAF2"
+dataframeBorderColor = "#E2EAF2"
+dataframeHeaderBackgroundColor = "#F6F9FC"
+showWidgetBorder = true
+baseRadius = "0.85rem"
+buttonRadius = "0.75rem"
+# Fonts load from Google Fonts in the browser; without internet the system font is used.
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap, sans-serif"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap, monospace"
+headingFontWeights = [700, 650, 600, 600, 600, 600]
+codeBackgroundColor = "#EEF4FA"
+codeTextColor = "#03045E"
+blueColor = "#0077B6"
+blueBackgroundColor = "#E3F2FB"
+blueTextColor = "#0B5E91"
+greenColor = "#16865A"
+greenBackgroundColor = "#E4F5EC"
+greenTextColor = "#16865A"
+orangeColor = "#A5670B"
+orangeBackgroundColor = "#FDF3E0"
+orangeTextColor = "#A5670B"
+redColor = "#C2412D"
+redBackgroundColor = "#FCEBE7"
+redTextColor = "#C2412D"
+grayColor = "#5F6F8A"
+grayBackgroundColor = "#EEF1F5"
+grayTextColor = "#34445F"
+chartCategoricalColors = ["#03045E", "#0077B6", "#00B4D8", "#90E0EF", "#5F6F8A", "#CAF0F8"]
+chartSequentialColors = ["#CAF0F8", "#A8E6F3", "#90E0EF", "#48CAE4", "#00B4D8", "#0096C7", "#0077B6", "#023E8A", "#03045E", "#020344"]
+
+[theme.sidebar]
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F6F9FC"
+borderColor = "#E2EAF2"
 
 [browser]
 # Don't send usage statistics to Streamlit

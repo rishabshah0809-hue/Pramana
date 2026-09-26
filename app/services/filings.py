@@ -122,6 +122,19 @@ def company_filings(isin: str, category: str | None = None, limit: int = 300) ->
     return out[:limit]
 
 
+def watchlist_activity(isins: list[str], since: datetime) -> list[dict]:
+    """Stored filings for these companies published (or, if the exchange gave no time, first
+    seen) at or after `since`. One row per filing: {"isin", "category", "at"} (ISO time).
+    Used for the Command Center activity grid and the "filings today" count."""
+    out = []
+    for isin in isins:
+        for r in company_filings(isin):
+            when = r["published_at"] or r["first_seen_at"]
+            if when and from_iso(when) >= since:
+                out.append({"isin": isin, "category": r["category"], "at": when})
+    return out
+
+
 def pending_downloads(adapter: str, max_failed: int) -> list[dict]:
     """Filing files for watchlist companies that haven't been stored yet, newest first."""
     conn = db.connect()
