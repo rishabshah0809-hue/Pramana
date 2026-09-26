@@ -28,6 +28,10 @@ try:
     for h in health.all_sources():
         with st.container(border=True):
             st.markdown(f"### {h.name}")
+            if h.source_id == "bulk_block":
+                from app.adapters.bulk_block import TERMS_WARNING
+
+                st.badge(TERMS_WARNING, icon=":material/warning:", color="red")
             st.caption(f"Trust tier {h.tier} · {'Automatic' if h.automated else 'Uploaded by you'}"
                        f" · Terms: {h.terms_status}")
             f_label, f_color = STATUS_BADGE.get(h.fetch_status, (h.fetch_status, "gray"))

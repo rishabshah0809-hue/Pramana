@@ -17,7 +17,7 @@ continues.
 | BSE / NSE corporate announcements | Results, board meetings, presentations, transcripts, orders, ratings | 1 | NSE feeds: 5 min (weekdays 08:00–22:00), 30 min otherwise. BSE feed: 15 min in market hours, hourly otherwise | M2 | **Checked 26 Sep 2026: official RSS feeds** | Built: `announcements` adapter |
 | Shareholding patterns | Promoter / FII / DII / public holdings, pledges | 1 | Same feed checks as NSE announcements | M2 | **Checked 26 Sep 2026: official RSS feeds** | Built: `shareholding` adapter |
 | Insider trading (SEBI PIT) and SAST | Insider buying and selling | 1 | Same feed checks as NSE announcements | M2 | **Checked 26 Sep 2026: official RSS feeds** | Built: `insider_sast` adapter |
-| Bulk and block deals | Large institutional trades | 1 | Weekdays 18:30 IST | M2 | **Checked 26 Sep 2026: conflicts with NSE terms; owner accepted the risk** | Built: `bulk_block` adapter |
+| Bulk and block deals | Large institutional trades | 1 | Weekdays 18:30 IST | M2 | **Checked 26 Sep 2026: conflicts with NSE terms. TEMPORARY EXCEPTION (see below)** | Built: `bulk_block` adapter |
 | FII / DII daily activity | Net institutional flows | 1 | Daily after close | M2 | Not yet | Not built |
 | XBRL financial results | Structured quarterly P&L and balance sheet | 1 | Quarterly | M2 | Not yet | Not built |
 | AMFI mutual fund portfolios | Which funds hold which stocks | 1 | Monthly | M2 | Not yet | Not built |
@@ -110,6 +110,8 @@ This check was done from the owner's own computer, which can reach the exchange 
    else is indexed from the feed (company, subject, time, link) without downloading the file.
 2. **Bulk and block deals:** the app downloads NSE's two daily files once each weekday at
    18:30 IST, **by the owner's explicit choice, despite the NSE terms conflict above**.
+
+   > **TEMPORARY EXCEPTION — accepted 26 Sep 2026 to unblock development.** Auto-fetches bulk.csv/block.csv daily, which violates NSE's terms of use. MUST be switched to manual upload before this app is used regularly or shared with anyone else. Revisit this at end of M6 (final milestone) before calling v1 done — do not let this become permanent by default.
 3. **Feed timing:** NSE feeds every 5 minutes on weekdays 08:00–22:00 and every 30 minutes
    otherwise, matching the feeds' own guidance. This is more often than the brief's
    "15 min / hourly", which would miss filings because the feeds hold so few items. BSE keeps

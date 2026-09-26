@@ -31,6 +31,11 @@ These override every feature request. If a task conflicts with them, stop and fl
 - Only two branches exist: **`main`** and **`experiment`**. Never create any other branch.
 - All work happens on `experiment`. Push to `main` only when the owner explicitly asks (e.g. "push to both").
 
+## Temporary exceptions (must not become permanent)
+
+- **Bulk and block deals (`app/adapters/bulk_block.py`).** **TEMPORARY EXCEPTION — accepted 26 Sep 2026 to unblock development.** Auto-fetches bulk.csv/block.csv daily, which violates NSE's terms of use. MUST be switched to manual upload before this app is used regularly or shared with anyone else. Revisit this at end of M6 (final milestone) before calling v1 done — do not let this become permanent by default.
+  The Data Health page shows a permanent warning on this adapter while the exception is active.
+
 ## Practical notes
 
 - API keys live only in `.env` or `.streamlit/secrets.toml` (both git-ignored). Never in code, logs, the database or Git history.

@@ -101,3 +101,14 @@ def test_data_health_lists_new_adapters_and_errors(with_bse):
                  "Bulk and block deals"):
         assert name in body
     assert "Could not reach NSE" in body and "1 errors" in body
+
+
+def test_bulk_block_terms_warning_always_shown(imported):
+    from app.adapters.bulk_block import TERMS_WARNING
+
+    t = run("app/ui/DataHealth.py")
+    assert not t.exception
+    assert TERMS_WARNING == ("Auto-fetch active — violates NSE terms, temporary for "
+                             "development only")
+    badges = [m.value for m in t.markdown if TERMS_WARNING in m.value]
+    assert len(badges) == 1 and badges[0].startswith(":red-badge[")   # red, not dismissible
