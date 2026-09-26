@@ -11,12 +11,15 @@ def test_real_config_loads():
     assert config["market_hours"] == {"open": "09:15", "close": "15:30"}
 
 
-def test_config_has_no_filled_model_names_yet():
+def test_ai_models_live_in_config_with_limits():
     ai = load_config()["ai"]
-    for provider in ai.values():
-        for key, value in provider.items():
-            if key != "temperature":
-                assert value == "", f"{key} should be an empty slot in M0"
+    for task in ("extraction", "crosscheck", "summary"):
+        for role in ("primary", "fallback"):
+            model = ai["tasks"][task][role]["model"]
+            assert model and model in ai["limits"], f"{task}.{role} needs limits"
+    # A second model must check the first one's work (Section 6).
+    assert ai["tasks"]["crosscheck"]["primary"]["provider"] !=         ai["tasks"]["extraction"]["primary"]["provider"]
+    assert ai["tasks"]["extraction"]["primary"]["temperature"] == 0
 
 
 def test_broken_config_gives_plain_english(tmp_path):

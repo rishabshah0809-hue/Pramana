@@ -73,17 +73,52 @@ rate_limits:
 conflicts:
   shareholding_percent_points: "0.01"
 
-# AI models. Names live here, never in code, because free-tier models change.
+# AI models (M3). Names, temperatures and limits live here, never in code, because
+# free-tier models change. Checked live on 26 Sep 2026 (see DATA_SOURCES.md).
 ai:
-  groq:
-    extraction_model: ""
-    verification_fallback_model: ""
-    temperature: 0
-  gemini:
-    summary_model: ""
-    verification_model: ""
-    qa_model: ""
-    embedding_fallback_model: ""
-    temperature: 0
+  prompts:                        # active prompt versions (files in app/llm/prompts/)
+    extract: v1
+    crosscheck: v1
+    summarize: v1
+  tasks:
+    extraction:                   # step b: Groq first, Gemini if Groq is unavailable
+      primary:  {provider: groq,   model: openai/gpt-oss-120b, temperature: 0}
+      fallback: {provider: gemini, model: gemini-3.8-flash, temperature: 1.0, thinking_level: low}
+    crosscheck:                   # step d: must be a different provider from the extractor
+      primary:  {provider: gemini, model: gemini-3.1-flash-lite, temperature: 1.0}
+      fallback: {provider: groq,   model: openai/gpt-oss-20b, temperature: 0}
+    summary:                      # step f
+      primary:  {provider: gemini, model: gemini-3.8-flash, temperature: 1.0, thinking_level: low}
+      fallback: {provider: groq,   model: openai/gpt-oss-120b, temperature: 0}
+  # Gemini 3 models: Google recommends temperature 1.0 (owner's decision, 26 Sep 2026).
+  # Groq stays at 0. Code still has the final say on everything saved.
+
+  # Free-tier limits per model. rpm/rpd = requests per minute/day, tpm/tpd = tokens.
+  # Blank = no limit published. The app keeps a safety margin below each limit.
+  limits:
+    openai/gpt-oss-120b: {rpm: 30, rpd: 1000, tpm: 8000, tpd: 200000, day: rolling}
+    openai/gpt-oss-20b:  {rpm: 30, rpd: 1000, tpm: 8000, tpd: 200000, day: rolling}
+    # PLACEHOLDERS: Google publishes Gemini free limits only in AI Studio. The owner is
+    # reading the real numbers; until then these are deliberately cautious guesses.
+    gemini-3.8-flash:      {rpm: 5,  rpd: 100, tpm: 100000, tpd: "", day: pacific_midnight, placeholder: true}
+    gemini-3.1-flash-lite: {rpm: 10, rpd: 500, tpm: 100000, tpd: "", day: pacific_midnight, placeholder: true}
+  safety_margin: 0.9              # use at most 90% of each limit
+
+  processing:
+    every_minutes: 10             # how often the background queue runs
+    max_calls_per_run: 40         # stops early if any limit is reached
+    chunk_chars: 3000             # a passage never crosses a page and is at most this long
+    max_output_tokens: 2000
+    # Filing types sent for AI extraction, in priority order (earlier = sooner).
+    categories: [transcript, results, presentation, order, rating, board_meeting, insider,
+                 sast, pledge, shareholding, other, annual_report]
+    summary_auto: [transcript, presentation]   # summarised automatically; others on request
+    summary_max_chars: 120000     # longer documents are summarised from their first part only
+
+  # Code-built signals from structured data (no AI).
+  structured_signals:
+    shareholding_change_points: "0.50"   # promoter / FII / DII change that makes a signal
+    deals_watchlist_only: true
+
   embeddings:
-    local_model: ""
+    local_model: ""                # M5

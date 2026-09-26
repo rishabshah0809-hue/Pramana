@@ -38,12 +38,14 @@ pages = {
         st.Page("app/ui/Watchlist.py", title="Watchlist", icon=":material/format_list_bulleted:"),
         st.Page("app/ui/Company.py", title="Company", icon=":material/domain:"),
         st.Page("app/ui/DocumentViewer.py", title="Document Viewer", icon=":material/description:"),
+        st.Page("app/ui/SignalFeed.py", title="Signal Feed", icon=":material/bolt:"),
+        st.Page("app/ui/Review.py", title="Needs review", icon=":material/rule:"),
     ],
     "Setup": [
         st.Page("app/ui/Companies.py", title="Company list", icon=":material/upload_file:"),
         st.Page("app/ui/DataHealth.py", title="Data Health", icon=":material/monitor_heart:"),
     ],
-    # Later milestones add pages here: Signal Feed, Thesis Builder, ...
+    # Later milestones add pages here: Thesis Builder, Evidence Board, ...
 }
 st.navigation(pages).run()
 sidebar_extras()

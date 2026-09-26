@@ -288,7 +288,7 @@ def gauge(score: float | None, label: str = "quality / 100") -> str:
 
 
 # Screens from the brief that later milestones build (shown greyed out, not clickable).
-COMING_NEXT = [("Signal Feed", "M3"), ("Thesis Builder", "M4"), ("Evidence Board", "M4"),
+COMING_NEXT = [("Thesis Builder", "M4"), ("Evidence Board", "M4"),
                ("Ask My Research", "M5"), ("Alerts", "M5"), ("Time Machine", "M6")]
 
 
@@ -366,3 +366,41 @@ STATUS_BADGE = {
     "no_data": ("No data yet", "gray"), "timestamp_unknown": ("Content age unknown", "gray"),
 }
 
+
+# ---------------------------------------------------------------------------
+# Signals (M3)
+# ---------------------------------------------------------------------------
+
+SIGNAL_STATUS_TONE = {"verified": ("Verified", "green"), "unverified": ("Unverified", "orange"),
+                      "needs_review": ("Needs review", "red"), "rejected": ("Rejected", "gray")}
+DIRECTION_TAG = {"positive": ("▲ positive", "green"), "negative": ("▼ negative", "red"),
+                 "neutral": ("● neutral", "gray")}
+
+
+def signal_card(s: dict, show_company: bool = True, link: bool = True) -> None:
+    """One signal: status and claim-type tags, the claim, where it came from, and a link that
+    opens the exact highlighted passage in the Document Viewer. The claim type (14.15) is
+    always shown next to the status: Verified proves the quote exists, not that it is true."""
+    from app.llm.schemas import CLAIM_TYPES, SIGNAL_TYPES
+    from app.timeutil import fmt_ist, from_iso
+
+    label, tone = SIGNAL_STATUS_TONE.get(s["current_status"], (s["current_status"], "gray"))
+    by_code = s.get("provider") == "code"
+    d_label, d_tone = DIRECTION_TAG.get(s["direction"], (s["direction"], "gray"))
+    tags = [tag(label + (" · structured data" if by_code else ""), tone),
+            tag(CLAIM_TYPES.get(s["claim_type"], s["claim_type"] or "Unknown claim type"), "navy"),
+            tag(SIGNAL_TYPES.get(s["type"], s["type"]), "blue"), tag(d_label, d_tone),
+            tag(f"strength {s['strength']}/5", "gray")]
+    where = [s.get("company_name") if show_company else None,
+             s["signal_date"] or f"found {fmt_ist(from_iso(s['created_at']))}",
+             f"tier {s['source_tier']}" if s.get("source_tier") else None,
+             f"page {s['page']}" if s.get("page") else None,
+             "no AI" if by_code else f"{s['model']} · {s['prompt_version']}"]
+    with st.container(border=True, key=f"card-sig-{s['id']}-{'c' if show_company else 'd'}"):
+        md(" ".join(tags))
+        md(f'<div style="font-weight:600;margin:.35rem 0 .15rem">{esc(s["claim_text"])}</div>')
+        st.caption(" · ".join(x for x in where if x))
+        if link:
+            st.page_link("app/ui/DocumentViewer.py", label="Open the highlighted source passage",
+                         query_params={"doc": s["document_id"], "signal": s["id"]},
+                         icon=":material/format_quote:")

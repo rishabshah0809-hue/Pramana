@@ -8,10 +8,11 @@ import streamlit as st
 from app.config import load_config
 from app.errors import FriendlyError, report
 from app.services import companies, conflicts, filings, health, prices, watchlist
+from app.services import signals as sig_service
 from app.timeutil import IST, fmt_ist, from_iso, now_utc
 from app.ui.common import (APP_NAME, CONTENT_BADGE, STATUS_BADGE, card_head, empty_state, esc,
                            fmt_inr, fmt_signed, fresh, initials, kpi, md, page_header, show_error,
-                           sparkline, tag, unknown_text)
+                           signal_card, sparkline, tag, unknown_text)
 
 page_header(APP_NAME, "Command Center · evidence-first research on Indian stocks",
             crumb="Command Center")
@@ -22,6 +23,24 @@ ACTIVITY = [("results", "Results", "#03045E"), ("board_meeting", "Board meeting"
             ("insider", "Insider trading / SAST", "#90E0EF"), ("sast", None, "#90E0EF"),
             ("other", "Other types", "#AEBBCD")]
 WEEKS = 26
+
+
+def _signals_card():
+    """Newest signals (brief Screen 1: top 20) and the AI queue in one line."""
+    q = sig_service.queue_state()
+    state_tag = {"current": tag("AI queue current", "green"),
+                 "queued": tag(f"AI queue: {q.passages} waiting", "orange"),
+                 "waiting": tag("AI queue waiting for limits", "red")}[q.state]
+    md(card_head("Newest signals", "Extracted from filings · checked by code", "pulse", state_tag))
+    rows = sig_service.newest(20)
+    if not rows:
+        md(empty_state("Insufficient evidence",
+                       "No signals yet. They appear as your watchlist companies' filings are "
+                       "read. Nothing is shown until real signals exist."))
+    for s in rows[:6]:
+        signal_card(s)
+    st.page_link("app/ui/SignalFeed.py", label=f"Open the Signal Feed ({len(rows)} newest)",
+                 icon=":material/arrow_forward:")
 
 
 def _watch_card(q):
@@ -162,11 +181,7 @@ try:
                     _watch_card(q)
         with right:
             with st.container(border=True, key="card-signals"):
-                md(card_head("Newest signals", "Verified extracts from filings", "pulse",
-                             tag("Milestone 3", "gray")))
-                md(empty_state("Insufficient evidence",
-                               "Signals are extracted from filings starting in Milestone 3. "
-                               "Nothing is shown until real signals exist."))
+                _signals_card()
             with st.container(border=True, key="card-health"):
                 md(card_head("Data health", "Fetch status · content age · quality", "health"))
                 out = []
@@ -194,10 +209,7 @@ try:
 
     if companies.company_count() == 0 or not watchlist.list_items():
         with st.container(border=True, key="card-signals-empty"):
-            md(card_head("Newest signals", "Verified extracts from filings", "pulse"))
-            md(empty_state("Insufficient evidence",
-                           "Signals are extracted from filings starting in Milestone 3. Nothing "
-                           "is shown until real signals exist."))
+            _signals_card()
     st.caption(f"Page loaded {fmt_ist(now_utc())}")
 except FriendlyError as err:
     show_error(err)

@@ -1,0 +1,108 @@
+# Golden test set (brief Section 6, "Quality measurement").
+#
+# The filings themselves are NOT in Git (this repository is public and BSE/NSE forbid
+# redistributing their files). `python -m tests.golden.fetch` downloads each one once into
+# tests/golden/docs/ (git-ignored) and checks its SHA-256 against this list.
+#
+# Expected signals are DRAFTS written by Claude until the owner confirms each document
+# (status: confirmed). The scorer refuses to report a final score while any document is a
+# draft or any Verified item is still waiting for the owner's judgement.
+#
+# Matching rule: a Verified item counts as matching an expected signal when the signal
+# types are equal and the expected key_quote appears inside the item's quote (spaces and
+# line breaks ignored). "direction: any" / "claim_type: any" means not checked.
+# "required: false" marks an acceptable extra that does not count against recall.
+#
+# company.id: the real ISIN when the filing states it; otherwise a clearly-fake GOLDEN:
+# placeholder used only inside the scorer's throwaway database (never an invented ISIN).
+
+documents:
+  - id: G01
+    title: Sharika Enterprises — preferential allotment of equity shares and warrants
+    url: https://www.bseindia.com/xml-data/corpfiling/AttachLive/5a5a9523-83f3-4846-a033-a0b738420f06.pdf
+    file: G01_sharika_allotment.pdf
+    sha256: 39c51a39210ac7096217a2d6f10e68f8e3810486d893b89b60112b06f230d963
+    category: other
+    company: {id: INE669Y01022, name: Sharika Enterprises Limited, bse_code: "540786"}
+    why: Ownership change; many Indian-format numbers (1,21,92,125 at Rs. 14.33)
+    status: draft
+    expected:
+      - {signal_type: ownership_change, direction: any, claim_type: fact,
+         key_quote: "Allotment of 1,21,92,125"}
+      - {signal_type: ownership_change, direction: any, claim_type: fact,
+         key_quote: "Allotment of 28,12,315"}
+      - {signal_type: ownership_change, direction: positive, claim_type: fact, required: false,
+         key_quote: "Rajinder Kaul Promoter"}
+
+  - id: G02
+    title: Wheels India — QIP allotment of 11,97,318 shares
+    url: https://nsearchives.nseindia.com/corporate/WHEELS_26092026000409_WILReg3025092026.pdf
+    file: G02_wheels_qip.pdf
+    sha256: 96a54951454d460a25d822d4c69a012c77c23765aeee374081a779d048ac3de3
+    category: other
+    company: {id: "GOLDEN:WHEELS", name: Wheels India Limited, nse_symbol: WHEELS, bse_code: "590073"}
+    why: Capital raise / dilution through a qualified institutions placement
+    status: draft
+    expected:
+      - {signal_type: ownership_change, direction: any, claim_type: fact,
+         key_quote: "allotment of 11,97,318 Equity Shares"}
+      - {signal_type: ownership_change, direction: any, claim_type: fact, required: false,
+         key_quote: "paid-up equity share capital of the Company stands increased"}
+      - {signal_type: ownership_change, direction: positive, claim_type: fact, required: false,
+         key_quote: "ADITYA BIRLA SUN LIFE MUTUAL FUND"}
+
+  - id: G03
+    title: RPG Life Sciences — subsidiary scheme of amalgamation
+    url: https://www.bseindia.com/xml-data/corpfiling/AttachLive/62911069-9eda-4774-9abe-e979d82d23d0.pdf
+    file: G03_rpg_amalgamation.pdf
+    sha256: 7932fd9d984fbf0b89eda5c320c5c6757ca3f7f5bf90388b356a098624122720
+    category: other
+    company: {id: "GOLDEN:RPGLIFE", name: RPG Life Sciences Limited, nse_symbol: RPGLIFE, bse_code: "532983"}
+    why: Corporate / legal action (NCLT scheme) involving unlisted subsidiaries
+    status: draft
+    expected:
+      - {signal_type: regulatory_legal, direction: any, claim_type: fact,
+         key_quote: "approved a Scheme of Amalgamation of Actis Generics Private Limited"}
+
+  - id: G04
+    title: Lloyds Metals — SAST Reg 31 promoter non-disposal undertaking
+    url: https://nsearchives.nseindia.com/corporate/LLOYDSME_09252026140641.zip
+    file: G04_lloyds_ndu.zip
+    sha256: 39f49b738ad20b5769f04924758ba74bb05f62c08e2932738ede6ac372a9a0ab
+    category: pledge
+    company: {id: "GOLDEN:LLOYDSME", name: Lloyds Metals and Energy Limited, nse_symbol: LLOYDSME, bse_code: "512455"}
+    why: Governance red flag — encumbrance (NDU) of promoter shares for a term loan
+    status: draft
+    expected:
+      - {signal_type: governance_red_flag, direction: negative, claim_type: fact,
+         key_quote: "1169540 (0.21%) equity shares"}
+      - {signal_type: governance_red_flag, direction: negative, claim_type: fact, required: false,
+         key_quote: "Crosslink Food and Farms Private Limited"}
+
+  - id: G05
+    title: Aaron Industries — SAST Reg 29 promoter open-market purchase (pages 2-6 scanned)
+    url: https://nsearchives.nseindia.com/corporate/AARON29_09252026164554_53461.zip
+    file: G05_aaron_sast29.zip
+    sha256: 44287a541f2e3288270af79622a463567d7485f8d61423fce0855041a37b84b4
+    category: sast
+    company: {id: "GOLDEN:AARON", name: Aaron Industries Limited, nse_symbol: AARON}
+    why: Promoter buying; tests that scanned pages are skipped, not guessed
+    status: draft
+    expected:
+      - {signal_type: ownership_change, direction: positive, claim_type: fact,
+         key_quote: "acquisition of 4,270"}
+
+  - id: G06
+    title: Virtual Galaxy Infotech — AGM voting results and scrutiniser report (control)
+    url: https://nsearchives.nseindia.com/corporate/VIRTUAL_25092026235836_2-Disclosure_Scrutinizers_Report.pdf
+    file: G06_virtual_agm.pdf
+    sha256: d18ba74c97a37b67012dabe2626253dc915c6b16cb8f243c148ccbf83b4d7d07
+    category: other
+    company: {id: INE0VRH01015, name: Virtual Galaxy Infotech Limited, nse_symbol: VGINFOTECH}
+    why: Control — routine AGM paperwork; expect zero signals (24 of 25 pages scanned)
+    status: draft
+    expected: []
+
+# G07-G20: to be chosen from weekday feeds (3 earnings-call transcripts, 2 investor
+# presentations, 2 results press releases, 2 order wins, 2 credit rating actions,
+# 1 auditor resignation / governance, 1 tax demand or litigation, 1 capex / new plant).

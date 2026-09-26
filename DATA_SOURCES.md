@@ -135,6 +135,23 @@ This check was done from the owner's own computer, which can reach the exchange 
 - **Storage:** feed files are stored gzip-compressed. Expect roughly 1 GB a year, mostly BSE's
   large feed.
 
+## AI providers (M3 check, 26 Sep 2026)
+
+Checked live with the owner's keys: model lists, one small test call per model, and each
+provider's published limits and data terms.
+
+| Provider | Used for | Models (config.yaml) | Free limits | Data terms |
+|---|---|---|---|---|
+| Groq | Extraction (step 2); fallback cross-check and summaries | `openai/gpt-oss-120b` (temperature 0), `openai/gpt-oss-20b` | Published: 30 requests/min, 1,000/day, 8,000 tokens/min, 200,000 tokens/day per model | "Does not retain customer data for inference requests" by default; no training use stated |
+| Google Gemini | Cross-check (step 4), summaries (step 6); fallback extraction | `gemini-3.1-flash-lite` (cross-check), `gemini-3.8-flash` (summaries), temperature 1.0 as Google recommends for Gemini 3 | **Not published**; shown only in AI Studio, per project, daily reset at midnight Pacific. Placeholder limits in config.yaml until the owner reads the real ones | **Free tier: inputs are used to improve Google's products and may be read by human reviewers.** Only public filing text is ever sent (code guardrail in `app/llm/client.py`) |
+
+Findings that shaped the design:
+- Gemini 2.5 models return "no longer available to new users"; 3.1 Pro has no free tier.
+- `gpt-oss-20b` once failed Groq's strict JSON check, so it is only a fallback.
+- `qwen/qwen3.8-27b` allows only 1,000 output tokens per minute, so it is not used.
+- A Groq extraction uses about 2,500–2,900 tokens per passage, so the free tier reads roughly
+  60–80 passages a day. The AI queue (Data Health) handles the backlog, watchlist first.
+
 ## Internet hosts the app may contact (brief 14.12)
 
 The app refuses any host that isn't in this list (`app/adapters/registry.py`), and a test
@@ -149,6 +166,8 @@ keeps the list and this file in sync.
 | Shareholding and pledges (tier 1) | `nsearchives.nseindia.com`, `archives.nseindia.com` | 2026-09-26 |
 | Insider trading and SAST (tier 1) | `nsearchives.nseindia.com`, `archives.nseindia.com` | 2026-09-26 |
 | Bulk and block deals (tier 1) | `nsearchives.nseindia.com` (conflicts with NSE terms; owner's choice) | 2026-09-26 |
+| Groq (AI) | `api.groq.com` | 2026-09-26 |
+| Google Gemini (AI) | `generativelanguage.googleapis.com` | 2026-09-26 |
 
 Never contacted: `www.nseindia.com` (NSE's main website and its API) and `api.bseindia.com`.
 

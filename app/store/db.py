@@ -12,7 +12,7 @@ from pathlib import Path
 
 from app import paths
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _NOW = "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
 
@@ -280,15 +280,84 @@ FILING_TABLES = {
     """,
 }
 
+# AI extraction (M3, schema version 4). All append-only.
+AI_TABLES = {
+    # Each passage sent for extraction with a given prompt version (so v2 can re-run).
+    "passage_extractions": f"""
+        id              INTEGER PRIMARY KEY,
+        passage_id      INTEGER NOT NULL REFERENCES passages(id),
+        prompt_version  TEXT NOT NULL,
+        call_id         INTEGER REFERENCES audit_log(id),
+        outcome         TEXT NOT NULL CHECK (outcome IN ('done', 'invalid_output', 'failed')),
+        items_found     INTEGER NOT NULL DEFAULT 0,
+        created_at      TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    # Status history of a signal (Section 7). The latest row is current.
+    "signal_status": f"""
+        id          INTEGER PRIMARY KEY,
+        signal_id   INTEGER NOT NULL REFERENCES signals(id),
+        status      TEXT NOT NULL CHECK (status IN ('verified', 'unverified', 'needs_review',
+                                                   'rejected')),
+        reason      TEXT NOT NULL,
+        set_by      TEXT NOT NULL CHECK (set_by IN ('system', 'ai', 'user')),
+        call_id     INTEGER REFERENCES audit_log(id),
+        created_at  TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    # Items that failed code validation: kept as a log, never shown as fact (step 5).
+    "extraction_rejections": f"""
+        id              INTEGER PRIMARY KEY,
+        document_id     INTEGER NOT NULL REFERENCES documents(id),
+        passage_id      INTEGER REFERENCES passages(id),
+        item_json       TEXT NOT NULL,     -- exactly what the model returned for this item
+        reasons         TEXT NOT NULL,     -- JSON list of plain-English reasons
+        suggested_company TEXT REFERENCES companies(isin),  -- 14.4 fuzzy suggestion, if any
+        provider        TEXT NOT NULL,
+        model           TEXT NOT NULL,
+        prompt_version  TEXT NOT NULL,
+        call_id         INTEGER REFERENCES audit_log(id),
+        created_at      TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    # Document summaries with per-sentence chunk citations (step 6).
+    "summaries": f"""
+        id                 INTEGER PRIMARY KEY,
+        document_id        INTEGER NOT NULL REFERENCES documents(id),
+        sentences_json     TEXT NOT NULL,  -- kept sentences with their passage ids
+        removed_json       TEXT NOT NULL,  -- removed sentences and why
+        coverage           TEXT NOT NULL,  -- Decimal: kept / total sentences
+        chars_summarised   INTEGER NOT NULL,
+        chars_total        INTEGER NOT NULL,
+        provider           TEXT NOT NULL,
+        model              TEXT NOT NULL,
+        prompt_version     TEXT NOT NULL,
+        call_id            INTEGER REFERENCES audit_log(id),
+        created_at         TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    # The owner's 14.4 decisions on suggested company matches.
+    "company_match_reviews": f"""
+        id             INTEGER PRIMARY KEY,
+        rejection_id   INTEGER NOT NULL REFERENCES extraction_rejections(id),
+        decision       TEXT NOT NULL CHECK (decision IN ('confirmed', 'rejected')),
+        company        TEXT REFERENCES companies(isin),
+        created_at     TEXT NOT NULL DEFAULT {_NOW}
+    """,
+}
+
 # Columns added after schema version 1, applied to older databases on start.
 _ADDED_COLUMNS = {
     "prices": [("interval", "TEXT"), ("is_delayed", "INTEGER NOT NULL DEFAULT 0"),
                ("currency", "TEXT")],
+    # M3: where a passage sits (file inside a zip) and how it was read.
+    "passages": [("member", "TEXT"), ("kind", "TEXT"), ("extraction_version", "TEXT")],
+    # M3: claim type (14.15), exact quote and its place in the passage, cross-check answer.
+    "signals": [("document_id", "INTEGER REFERENCES documents(id)"), ("claim_type", "TEXT"),
+                ("quote", "TEXT"), ("quote_start", "INTEGER"), ("quote_end", "INTEGER"),
+                ("source_tier", "INTEGER"), ("cross_check", "TEXT"), ("provider", "TEXT"),
+                ("call_id", "INTEGER"), ("dedupe_key", "TEXT")],
 }
 
 # Raw facts are append-only: new versions are inserted, old rows never change.
 APPEND_ONLY_TABLES = ("documents", "passages", "prices", "audit_log", "quality_scores",
-                      *FILING_TABLES)
+                      "signals", *FILING_TABLES, *AI_TABLES)
 
 
 def connect(path: Path | None = None) -> sqlite3.Connection:
@@ -308,7 +377,8 @@ def init_db(path: Path | None = None) -> Path:
     try:
         conn.execute("PRAGMA journal_mode = WAL")
         with conn:
-            for name, columns in {**TABLES, **OPERATIONAL_TABLES, **FILING_TABLES}.items():
+            for name, columns in {**TABLES, **OPERATIONAL_TABLES, **FILING_TABLES,
+                                  **AI_TABLES}.items():
                 conn.execute(f"CREATE TABLE IF NOT EXISTS {name} ({columns})")
             for name, cols in _ADDED_COLUMNS.items():
                 existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({name})")}
@@ -330,8 +400,17 @@ def init_db(path: Path | None = None) -> Path:
                 "idx_deals_company ON bulk_block_deals (company, trade_date)",
                 "idx_fetch_log_url ON fetch_log (url, id)",
                 "idx_status_document ON document_status (document_id, id)",
+                "idx_passages_document ON passages (document_id, page)",
+                "idx_extractions_passage ON passage_extractions (passage_id, prompt_version)",
+                "idx_signals_company ON signals (company, signal_date)",
+                "idx_signal_status ON signal_status (signal_id, id)",
+                "idx_rejections_document ON extraction_rejections (document_id)",
+                "idx_summaries_document ON summaries (document_id, id)",
+                "idx_audit_action ON audit_log (action, timestamp)",
             ):
                 conn.execute(f"CREATE INDEX IF NOT EXISTS {index}")
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_signals_dedupe "
+                         "ON signals (dedupe_key)")
             for name in APPEND_ONLY_TABLES:
                 for op in ("UPDATE", "DELETE"):
                     conn.execute(

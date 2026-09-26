@@ -1,6 +1,5 @@
-"""Company page (Screen 2): price, filings timeline, shareholding trend and large deals.
-
-Only stored, real data is shown. AI summaries and signals arrive in Milestone 3.
+"""Company page (Screen 2): price, signals, summaries, filings timeline, shareholding trend and
+large deals. Numbers come from stored data; AI text always carries its source (M3).
 """
 
 import streamlit as st
@@ -9,10 +8,11 @@ from app.adapters import bulk_block
 from app.adapters.shareholding import CATEGORY_LABELS as SHP_LABELS
 from app.errors import FriendlyError, report
 from app.services import companies, conflicts, filings, health, holdings, prices, watchlist
+from app.services import signals as sig_service
 from app.timeutil import fmt_ist, from_iso
 from app.ui import charts
 from app.ui.common import (card_head, esc, fmt_inr, fmt_signed, fresh, initials, md, page_header,
-                           show_error, tag, unknown_text)
+                           show_error, signal_card, tag, unknown_text)
 
 CHART_CATEGORIES = ("promoter", "fii", "dii", "public")
 
@@ -200,6 +200,30 @@ def _deals(c: dict):
     st.caption("NSE's daily files are checked each weekday after the close.")
 
 
+def _signals(c: dict):
+    rows = sig_service.feed(company=c["isin"], limit=100)
+    if not rows:
+        st.caption("Insufficient evidence — no signals for this company yet. They appear as its "
+                   "filings are read (Data Health shows the AI queue).")
+    for s in rows:
+        signal_card(s, show_company=False)
+
+
+def _summaries(c: dict):
+    rows = sig_service.latest_summaries(c["isin"])
+    if not rows:
+        st.caption("No summaries yet. Transcripts and presentations are summarised automatically; "
+                   "any other filing can be summarised from the Document Viewer.")
+    for r in rows:
+        cov = float(r["coverage"]) * 100
+        st.markdown(f"**{filings.CATEGORY_LABELS.get(r['doc_type'], r['doc_type'])}** · citation "
+                    f"coverage {cov:.0f}%")
+        for sent in r["sentences"]:
+            st.markdown(f"- {sent['text']} :gray[{', '.join(f'[{x}]' for x in sent['chunk_ids'])}]")
+        st.page_link("app/ui/DocumentViewer.py", label="Open the filing and its cited passages",
+                     query_params={"doc": r["document_id"]}, icon=":material/description:")
+
+
 try:
     c = _pick_company()
     if c:
@@ -210,15 +234,19 @@ try:
         with right:
             _shareholding_chart(c)
         with st.container(border=True, key="card-detail"):
-            tabs = st.tabs(["Filings", "Shareholding", "Large deals"])
+            tabs = st.tabs(["Signals", "Summaries", "Filings", "Shareholding", "Large deals"])
             with tabs[0]:
-                _timeline(c)
+                _signals(c)
             with tabs[1]:
-                _shareholding_table(c)
+                _summaries(c)
             with tabs[2]:
+                _timeline(c)
+            with tabs[3]:
+                _shareholding_table(c)
+            with tabs[4]:
                 _deals(c)
-            st.caption("Summaries, pledges-as-signals and insider signals arrive in Milestone 3. "
-                       "Nothing here is written by AI.")
+            st.caption("Prices, holdings and deal figures come straight from stored data. AI "
+                       "text appears only in Signals and Summaries, always with its source.")
 except FriendlyError as err:
     show_error(err)
 except Exception as exc:  # never show a traceback to the owner

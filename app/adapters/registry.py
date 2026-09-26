@@ -96,5 +96,28 @@ SOURCES = {
 MANUAL_FILING_SOURCE = "manual_upload"
 
 
+# AI providers (M3). They only ever receive public filing text (app/llm/client.py).
+@dataclass(frozen=True)
+class Provider:
+    id: str
+    name: str
+    hosts: tuple[str, ...]
+    key_name: str
+    data_terms: str
+    terms_checked: str
+
+
+AI_PROVIDERS = {
+    "groq": Provider("groq", "Groq", ("api.groq.com",), "GROQ_API_KEY",
+                     "Does not retain inputs by default; no training use stated",
+                     "2026-09-26"),
+    "gemini": Provider("gemini", "Google Gemini", ("generativelanguage.googleapis.com",),
+                       "GEMINI_API_KEY",
+                       "Free tier: inputs may be used to improve Google products and read by "
+                       "reviewers, so only public filing text is ever sent", "2026-09-26"),
+}
+
+
 def allowed_hosts() -> set[str]:
-    return {h for s in SOURCES.values() for h in s.hosts}
+    return ({h for s in SOURCES.values() for h in s.hosts}
+            | {h for p in AI_PROVIDERS.values() for h in p.hosts})

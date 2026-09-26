@@ -74,6 +74,17 @@ def deals_job() -> None:
         report(exc, log)
 
 
+def ai_job() -> None:
+    """The AI queue (M3): reads new filings within the free-tier limits."""
+    from app.processing import pipeline
+
+    try:
+        run = pipeline.run_queue()
+        log.info("AI queue: %s — %s", run.status, run.message)
+    except Exception as exc:  # run_queue never raises, but keep the scheduler alive regardless
+        report(exc, log)
+
+
 def build(scheduler) -> None:
     cfg = load_config()
     every = int(cfg["schedules"]["prices_delayed"]["every_minutes"])
@@ -85,6 +96,9 @@ def build(scheduler) -> None:
                                              minute=int(close_m), timezone=IST),
                       kwargs={"force": True}, id="prices_close", max_instances=1, coalesce=True)
     scheduler.add_job(feeds_tick, CronTrigger(minute="*/5", timezone=IST), id="exchange_feeds",
+                      max_instances=1, coalesce=True)
+    every_ai = int(cfg["ai"]["processing"].get("every_minutes", 10))
+    scheduler.add_job(ai_job, CronTrigger(minute=f"*/{every_ai}", timezone=IST), id="ai_queue",
                       max_instances=1, coalesce=True)
     deals_h, deals_m = cfg["schedules"]["bulk_block_deals"]["after_close"].split(":")
     scheduler.add_job(deals_job, CronTrigger(day_of_week="mon-fri", hour=int(deals_h),

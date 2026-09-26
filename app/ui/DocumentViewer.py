@@ -1,13 +1,18 @@
 """Document Viewer (Screen 6): the original filing exactly as fetched, with its source,
 published time, fetch time, version and status. Citation highlighting arrives in M3."""
 
+import html
+
 import streamlit as st
 
 from app.errors import FriendlyError, report
 from app.services import documents, filings, watchlist
 from app.services.rawstore import STATUSES
 from app.timeutil import IST, fmt_ist, from_iso
-from app.ui.common import card_head, esc, md, page_header, show_error, tag
+from app.llm import client as llm_client
+from app.processing import summarize
+from app.services import signals
+from app.ui.common import card_head, esc, md, page_header, show_error, signal_card, tag
 
 page_header("Document Viewer", "The original filing exactly as fetched, with its source, times, "
                                "version and status.", crumb="Research")
@@ -64,7 +69,70 @@ def _show_bytes(data: bytes, name: str, key: str, feed_label: str = "stored feed
         st.info("This file type can't be shown here. Use 'Download original' to open it.")
 
 
-def _viewer(doc_id: int):
+def _marked(text: str, start: int, end: int) -> str:
+    """Passage text with the quote marked. Everything is escaped: no filing code ever runs."""
+    return (html.escape(text[:start]) + "<mark>" + html.escape(text[start:end]) + "</mark>"
+            + html.escape(text[end:])).replace("\r\n", "\n").replace("\n", "<br>")
+
+
+def _cited(sig: dict, data: bytes):
+    """A signal's exact passage: highlighted on the original page image, and as text."""
+    with st.container(border=True, key="cardsub-cited"):
+        md(card_head("Cited passage", "The words this signal was taken from, highlighted",
+                     "doc"))
+        signal_card(sig, link=False)
+        for h in sig["history"]:
+            st.caption(f"{fmt_ist(from_iso(h['created_at']))} · {h['status']} · by "
+                       f"{h['set_by']} · {h['reason']}")
+        s, e = sig["quote_start"] or 0, sig["quote_end"] or 0
+        if sig["passage_kind"] == "text" and sig["page"]:
+            png = documents.highlight_png(data, sig["member"], sig["page"],
+                                          sig["passage_start"] + s, sig["passage_start"] + e)
+            if png:
+                st.image(png, caption=f"Page {sig['page']}"
+                         + (f" of {sig['member']}" if sig["member"] else "")
+                         + " — the quoted words are highlighted")
+        what = ("Exact text from the stored file (structured data)"
+                if sig["passage_kind"] == "structured"
+                else f"Passage {sig['passage_id']}, page {sig['page']} — quote highlighted")
+        st.markdown(f"**{what}**")
+        md(f'<div style="border-left:3px solid #00B4D8;padding:.5rem .8rem;font-size:.9rem">'
+           f'{_marked(sig["passage_text"], s, e)}</div>')
+
+
+def _summary(doc_id: int):
+    with st.container(border=True, key="cardsub-summary"):
+        summ = signals.summaries_for(doc_id)
+        if summ:
+            cov = float(summ["coverage"]) * 100
+            md(card_head("AI summary", f"{summ['model']} · {summ['prompt_version']}", "list",
+                         tag(f"citation coverage {cov:.0f}%", "green" if cov >= 80 else "orange")))
+            st.caption(f"{len(summ['sentences'])} sentence(s) kept, {len(summ['removed'])} removed "
+                       f"by the code checks · summarised {summ['chars_summarised']:,} of "
+                       f"{summ['chars_total']:,} characters. Every sentence cites its passage(s); "
+                       f"any number is a copy checked against them.")
+            for sent in summ["sentences"]:
+                cites = ", ".join(f"[{c}]" for c in sent["chunk_ids"])
+                st.markdown(f"- {sent['text']} :gray[{cites}]")
+            if summ["removed"]:
+                with st.expander(f"Removed sentences ({len(summ['removed'])}) — not shown as fact"):
+                    for r in summ["removed"]:
+                        st.caption(f"✗ {r['text']} — {r['reason']}")
+        else:
+            md(card_head("AI summary", "Not summarised yet", "list"))
+        if st.button("Summarise this document now" if not summ else "Summarise again",
+                     icon=":material/summarize:"):
+            with st.spinner("Asking the summary model… (only this filing's text is sent)"):
+                try:
+                    res = summarize.summarize_document(doc_id)
+                    (st.success if res.get("ok") else st.warning)(
+                        res.get("message") or f"Done: {res['kept']} sentence(s) kept, "
+                                              f"{res['removed']} removed.")
+                except llm_client.AIUnavailable as exc:
+                    st.warning(exc.message)
+
+
+def _viewer(doc_id: int, signal_id: int | None = None):
     doc = documents.get(doc_id)
     if doc is None:
         st.warning("That document isn't in the register.")
@@ -100,6 +168,10 @@ def _viewer(doc_id: int):
         st.caption(f"Published time exactly as the exchange wrote it: {f['published_raw']} (IST)")
 
     data = documents.content(doc)
+    if signal_id:
+        sig = signals.get(signal_id)
+        if sig and sig["document_id"] == doc_id:
+            _cited(sig, data)
     b1, b2 = st.columns(2)
     b1.download_button("Download original", data, file_name=documents.filename(doc),
                        icon=":material/download:")
@@ -121,6 +193,13 @@ def _viewer(doc_id: int):
                                    f"{fmt_ist(from_iso(v['fetched_at']))} · "
                                    f"{v['content_hash'][:12]}")
 
+    if doc["type"] != "feed_snapshot":
+        _summary(doc_id)
+        found = signals.for_document(doc_id)
+        if found:
+            with st.expander(f"Signals found in this document ({len(found)})"):
+                for s in found:
+                    signal_card(s | {"company_name": doc["company_name"]}, show_company=False)
     st.divider()
     _show_bytes(data, documents.filename(doc), str(doc_id),
                 feed_label=f"{f['feed']} feed" if f else "stored feed")
@@ -176,7 +255,9 @@ try:
     with tab_view:
         if doc_param and str(doc_param).isdigit():
             with st.container(border=True, key="card-doc"):
-                _viewer(int(doc_param))
+                sig_param = st.query_params.get("signal")
+                _viewer(int(doc_param), int(sig_param) if sig_param and str(sig_param).isdigit()
+                        else None)
         else:
             st.info("Open a filing from a company's page, or pick one under **All documents**.")
     with tab_list, st.container(border=True, key="card-alldocs"):

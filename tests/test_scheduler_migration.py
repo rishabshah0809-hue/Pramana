@@ -33,7 +33,8 @@ def test_scheduler_jobs(db_ready):
 
     r = Recorder()
     scheduler.build(r)
-    assert r.ids == ["prices_intraday", "prices_close", "exchange_feeds", "bulk_block_deals"]
+    assert r.ids == ["prices_intraday", "prices_close", "exchange_feeds", "ai_queue",
+                     "bulk_block_deals"]
 
 
 def test_price_job_never_crashes(db_ready, monkeypatch):

@@ -352,3 +352,42 @@ def set_status(document_id: int, status: str, reason: str, superseded_by: int | 
                              "reason": reason.strip()})
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Highlighting a cited passage on the original page (M3)
+# ---------------------------------------------------------------------------
+
+def _pdf_bytes(data: bytes, member: str | None) -> bytes:
+    return zip_member(data, member) if member else data
+
+
+def highlight_png(data: bytes, member: str | None, page: int, start: int, end: int,
+                  scale: float = 1.6) -> bytes | None:
+    """The page as an image with characters start..end of its extracted text marked in
+    yellow. Offsets are the same ones the passage was cut with (same text engine)."""
+    import pypdfium2 as pdfium
+    from PIL import Image, ImageDraw
+
+    raw = _pdf_bytes(data, member)
+    if kind_of(raw, member or "") != "pdf":
+        return None
+    pdf = pdfium.PdfDocument(raw)
+    try:
+        pg = pdf[page - 1]
+        _, height = pg.get_size()
+        tp = pg.get_textpage()
+        n = tp.count_rects(start, max(end - start, 1))
+        rects = [tp.get_rect(i) for i in range(n)]
+        tp.close()
+        image = pg.render(scale=scale).to_pil().convert("RGBA")
+    finally:
+        pdf.close()
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    for left, bottom, right, top in rects:
+        draw.rectangle([left * scale - 2, (height - top) * scale - 2, right * scale + 2,
+                        (height - bottom) * scale + 2], fill=(255, 200, 0, 110))
+    out = io.BytesIO()
+    Image.alpha_composite(image, overlay).convert("RGB").save(out, format="PNG")
+    return out.getvalue()
