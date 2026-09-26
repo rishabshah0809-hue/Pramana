@@ -4,7 +4,7 @@
 # redistributing their files). `python -m tests.golden.fetch` downloads each one once into
 # tests/golden/docs/ (git-ignored) and checks its SHA-256 against this list.
 #
-# Expected signals are DRAFTS written by Claude until the owner confirms each document
+# Expected signals were drafted by Claude and confirmed by the owner on 26 Sep 2026
 # (status: confirmed). The scorer refuses to report a final score while any document is a
 # draft or any Verified item is still waiting for the owner's judgement.
 #
@@ -25,7 +25,7 @@ documents:
     category: other
     company: {id: INE669Y01022, name: Sharika Enterprises Limited, bse_code: "540786"}
     why: Ownership change; many Indian-format numbers (1,21,92,125 at Rs. 14.33)
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: ownership_change, direction: any, claim_type: fact,
          key_quote: "Allotment of 1,21,92,125"}
@@ -42,7 +42,7 @@ documents:
     category: other
     company: {id: "GOLDEN:WHEELS", name: Wheels India Limited, nse_symbol: WHEELS, bse_code: "590073"}
     why: Capital raise / dilution through a qualified institutions placement
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: ownership_change, direction: any, claim_type: fact,
          key_quote: "allotment of 11,97,318 Equity Shares"}
@@ -59,7 +59,7 @@ documents:
     category: other
     company: {id: "GOLDEN:RPGLIFE", name: RPG Life Sciences Limited, nse_symbol: RPGLIFE, bse_code: "532983"}
     why: Corporate / legal action (NCLT scheme) involving unlisted subsidiaries
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: regulatory_legal, direction: any, claim_type: fact,
          key_quote: "approved a Scheme of Amalgamation of Actis Generics Private Limited"}
@@ -72,7 +72,7 @@ documents:
     category: pledge
     company: {id: "GOLDEN:LLOYDSME", name: Lloyds Metals and Energy Limited, nse_symbol: LLOYDSME, bse_code: "512455"}
     why: Governance red flag — encumbrance (NDU) of promoter shares for a term loan
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: governance_red_flag, direction: negative, claim_type: fact,
          key_quote: "1169540 (0.21%) equity shares"}
@@ -87,7 +87,7 @@ documents:
     category: sast
     company: {id: "GOLDEN:AARON", name: Aaron Industries Limited, nse_symbol: AARON}
     why: Promoter buying; tests that scanned pages are skipped, not guessed
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: ownership_change, direction: positive, claim_type: fact,
          key_quote: "acquisition of 4,270"}
@@ -100,7 +100,7 @@ documents:
     category: other
     company: {id: INE0VRH01015, name: Virtual Galaxy Infotech Limited, nse_symbol: VGINFOTECH}
     why: Control — routine AGM paperwork; expect zero signals (24 of 25 pages scanned)
-    status: draft
+    status: confirmed
     expected: []
 
   # --- G07-G20 chosen 26 Sep 2026 from NSE's archive (weekend feeds were thin) -----------
@@ -112,7 +112,7 @@ documents:
     category: order
     company: {id: INE0SGZ01016, name: Suntech Infra Solutions Limited, nse_symbol: SUNTECH}
     why: Order win with value; customer not named
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: order_win, direction: positive, claim_type: any,
          key_quote: "receipt of a Work Order for Execution of Pilling Work"}
@@ -125,7 +125,7 @@ documents:
     category: order
     company: {id: "GOLDEN:SSEGL", name: Sathlokhar Synergys E&C Global Limited, nse_symbol: SSEGL}
     why: Order win plus order book and management guidance in one filing
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: order_win, direction: positive, claim_type: any,
          key_quote: "Total Order value is estimated at INR 44.26 Crores"}
@@ -144,7 +144,7 @@ documents:
     category: other
     company: {id: "GOLDEN:ABLBL", name: Aditya Birla Lifestyle Brands Limited, nse_symbol: ABLBL, bse_code: "544403"}
     why: Tax demand (regulatory/legal); the order is in the name of another listed company
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: regulatory_legal, direction: negative, claim_type: fact,
          key_quote: "Total Demand ₹ 3,10,13,33,083"}
@@ -159,7 +159,7 @@ documents:
     category: other
     company: {id: "GOLDEN:SUPREMEPWR", name: Supreme Power Equipment Limited, nse_symbol: SUPREMEPWR}
     why: Capex / new capacity commissioned
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: capex_expansion, direction: positive, claim_type: fact,
          key_quote: "successfully commenced commercial production"}
@@ -174,7 +174,7 @@ documents:
     category: other
     company: {id: "GOLDEN:GANGABATH", name: Ganga Bath Fittings Limited, nse_symbol: GANGABATH}
     why: Governance red flag; the filing has a typo ("resignation a Statutory Auditors"), a verbatim test
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: governance_red_flag, direction: negative, claim_type: fact,
          key_quote: "have tendered their resignation a Statutory Auditors of the Company"}
@@ -189,7 +189,7 @@ documents:
     category: results
     company: {id: "GOLDEN:SONACOMS", name: Sona BLW Precision Forgings Limited, nse_symbol: SONACOMS, bse_code: "543300"}
     why: Results with order wins and a long-term target; Section 5 has no "results" type
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: order_win, direction: positive, claim_type: any,
          key_quote: "This program has added Rs 6.4 billion to our order book"}
@@ -197,7 +197,7 @@ documents:
          key_quote: "This program has added Rs 900 million to our order book"}
       - {signal_type: order_win, direction: positive, claim_type: any, required: false,
          key_quote: "This program has added Rs 2.1 billion to our order book"}
-      - {signal_type: [demand_commentary, cost_margin], direction: positive, claim_type: any,
+      - {signal_type: [financial_results, demand_commentary, cost_margin], direction: positive, claim_type: any,
          required: false, key_quote: "Revenue of Rs. 1,310 crores with 54% YoY growth"}
       - {signal_type: management_guidance, direction: positive, claim_type: target, required: false,
          key_quote: "aspiration to repeat 10 times revenue growth"}
@@ -210,11 +210,11 @@ documents:
     category: results
     company: {id: "GOLDEN:KAPSTON", name: Kapston Services Limited, nse_symbol: KAPSTON}
     why: Results from an OCR'd page (₹ reads as "X"); tests verbatim on imperfect text
-    status: draft
+    status: confirmed
     expected:
-      - {signal_type: [demand_commentary, cost_margin], direction: positive, claim_type: any,
+      - {signal_type: [financial_results, demand_commentary, cost_margin], direction: positive, claim_type: any,
          required: false, key_quote: "Revenue of 221.88 crore, up by 15.99%"}
-      - {signal_type: cost_margin, direction: positive, claim_type: any, required: false,
+      - {signal_type: [financial_results, cost_margin], direction: positive, claim_type: any, required: false,
          key_quote: "EBITDA of X 14.76 crore, up by 51.85%"}
       - {signal_type: capex_expansion, direction: any, claim_type: any, required: false,
          key_quote: "Home Services technology platform is now ready for launch"}
@@ -227,7 +227,7 @@ documents:
     category: rating
     company: {id: "GOLDEN:MUTHOOTMF", name: Muthoot Microfin Limited, nse_symbol: MUTHOOTMF, bse_code: "544055"}
     why: Credit rating upgrade; long rationale that names the parent company
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: credit_rating, direction: positive, claim_type: fact,
          key_quote: "have upgraded the credit ratings assigned to the Company"}
@@ -240,7 +240,7 @@ documents:
     category: rating
     company: {id: "GOLDEN:MUKKA", name: Mukka Proteins Limited, nse_symbol: MUKKA, bse_code: "544135"}
     why: Credit rating downgrade with negative outlook
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: credit_rating, direction: negative, claim_type: fact,
          key_quote: "Downgraded from CARE BBB; Negative"}
@@ -255,7 +255,7 @@ documents:
     category: transcript
     company: {id: "GOLDEN:PRAJIND", name: Praj Industries Limited, nse_symbol: PRAJIND}
     why: Transcript with mixed news (order backlog, slowdown, subdued margins, no margin guidance)
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: demand_commentary, direction: any, claim_type: any,
          key_quote: "The order backlog as of June 30, 2026, is at INR 45.9 billion"}
@@ -276,7 +276,7 @@ documents:
     category: transcript
     company: {id: "GOLDEN:TDPOWERSYS", name: TD Power Systems Limited, nse_symbol: TDPOWERSYS}
     why: Guidance revision, order inflow and capacity plans
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: management_guidance, direction: positive, claim_type: guidance,
          key_quote: "we revised our guidance for FY '27 at INR2,600 crores"}
@@ -297,11 +297,11 @@ documents:
     category: transcript
     company: {id: "GOLDEN:POLICYBZR", name: PB Fintech Limited, nse_symbol: POLICYBZR}
     why: Long conversational transcript; growth and margin statements, vague targets
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: cost_margin, direction: positive, claim_type: any,
          key_quote: "PAT margin improved from 6% to 9% year-on-year"}
-      - {signal_type: [demand_commentary, cost_margin], direction: positive, claim_type: any,
+      - {signal_type: [financial_results, demand_commentary, cost_margin], direction: positive, claim_type: any,
          required: false, key_quote: "consolidated operating revenue grew 40% to ₹1,888 Cr"}
       - {signal_type: demand_commentary, direction: positive, claim_type: any, required: false,
          key_quote: "Our quarterly premium grew 46% year-on-year to ₹1,637 Cr"}
@@ -314,13 +314,13 @@ documents:
     category: presentation
     company: {id: "GOLDEN:RAYMOND", name: Raymond Limited, nse_symbol: RAYMOND}
     why: Slide text (fragmented), order book, margin commentary
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: demand_commentary, direction: positive, claim_type: any,
          key_quote: "ORDER BOOK VALUE ₹5,960+ Cr"}
       - {signal_type: cost_margin, direction: positive, claim_type: any,
          key_quote: "EBITDA margins expanded driven by volume growth"}
-      - {signal_type: [demand_commentary, cost_margin], direction: positive, claim_type: any,
+      - {signal_type: [financial_results, demand_commentary, cost_margin], direction: positive, claim_type: any,
          required: false, key_quote: "Q1FY27 witnessed a robust growth of 40% vs PY"}
 
   - id: G20
@@ -331,7 +331,7 @@ documents:
     category: presentation
     company: {id: "GOLDEN:RPPL", name: Rajshree Polypack Limited, nse_symbol: RPPL}
     why: Presentation with mostly company claims and industry context (not company facts)
-    status: draft
+    status: confirmed
     expected:
       - {signal_type: demand_commentary, direction: positive, claim_type: company_claim,
          key_quote: "Our performance reflects sustained customer demand"}

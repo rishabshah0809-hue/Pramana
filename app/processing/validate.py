@@ -3,8 +3,9 @@
 An item is rejected if:
 - it doesn't match the required format (JSON / schema),
 - it cites a chunk it wasn't given,
-- its quote isn't found verbatim in the chunk (owner's rule, 26 Sep 2026: every character
-  must match exactly, except that runs of spaces and line breaks count as one space),
+- its quote isn't found verbatim in the chunk (owner's rules, 26 Sep 2026: every character
+  must match exactly, except that runs of spaces and line breaks count as one space, hyphen
+  variants count as "-" and curly single quotes as "'"),
 - any number in the claim isn't in the quote (compared as exact decimals, 14.6:
   "1,21,92,125" equals "12192125"; "17.47 crore" does not equal "17,47,13,151"),
 - the company can't be matched by exact name (14.4). A close-but-not-exact name is kept as a
@@ -25,9 +26,16 @@ MIN_QUOTE_WORDS = 3
 _NUMBER = re.compile(r"(?<![\w])(\d[\d,]*(?:\.\d+)?)")
 
 
+# Owner's rule (26 Sep 2026): typographic variants are rendering artifacts, not content.
+# Hyphen variants count as "-" and curly single quotes as "'" (one character for one).
+_TYPOGRAPHIC = str.maketrans({"\u2010": "-", "\u2011": "-", "\u2012": "-", "\u00ad": "-",
+                              "\u2018": "'", "\u2019": "'", "\u02bc": "'", "\u2032": "'"})
+
+
 def _collapse(text: str) -> tuple[str, list[int]]:
     """Text with each run of whitespace turned into one space, plus where each character came from."""
     out, where, in_space = [], [], False
+    text = text.translate(_TYPOGRAPHIC)
     for i, ch in enumerate(text):
         if ch.isspace():
             if not in_space and out:
@@ -43,7 +51,7 @@ def _collapse(text: str) -> tuple[str, list[int]]:
 
 def find_verbatim(quote: str, text: str) -> tuple[int, int] | None:
     """(start, end) of the quote in the original text, or None if it isn't there."""
-    q = " ".join(quote.split())
+    q = " ".join(quote.translate(_TYPOGRAPHIC).split())
     if not q:
         return None
     collapsed, where = _collapse(text)

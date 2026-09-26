@@ -77,7 +77,7 @@ conflicts:
 # free-tier models change. Checked live on 26 Sep 2026 (see DATA_SOURCES.md).
 ai:
   prompts:                        # active prompt versions (files in app/llm/prompts/)
-    extract: v1
+    extract: v2                   # v2 (26 Sep 2026): adds the financial_results type
     crosscheck: v1
     summarize: v1
   tasks:
@@ -98,10 +98,11 @@ ai:
   limits:
     openai/gpt-oss-120b: {rpm: 30, rpd: 1000, tpm: 8000, tpd: 200000, day: rolling}
     openai/gpt-oss-20b:  {rpm: 30, rpd: 1000, tpm: 8000, tpd: 200000, day: rolling}
-    # PLACEHOLDERS: Google publishes Gemini free limits only in AI Studio. The owner is
-    # reading the real numbers; until then these are deliberately cautious guesses.
-    gemini-3.8-flash:      {rpm: 5,  rpd: 100, tpm: 100000, tpd: "", day: pacific_midnight, placeholder: true}
-    gemini-3.1-flash-lite: {rpm: 10, rpd: 500, tpm: 100000, tpd: "", day: pacific_midnight, placeholder: true}
+    # Gemini free limits as shown in the owner's AI Studio on 26 Sep 2026 (per project).
+    gemini-3.8-flash:      {rpm: 5,  rpd: 20, tpm: 250000, tpd: "", day: pacific_midnight}
+    # 3.1 Flash-Lite was not in the AI Studio list the owner sent; these copy the listed
+    # Flash-Lite model (2.5) and stay marked as placeholders until confirmed.
+    gemini-3.1-flash-lite: {rpm: 10, rpd: 20, tpm: 250000, tpd: "", day: pacific_midnight, placeholder: true}
   safety_margin: 0.9              # use at most 90% of each limit
 
   processing:

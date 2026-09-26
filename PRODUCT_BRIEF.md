@@ -125,6 +125,7 @@ Each signal records type, direction (positive, negative, neutral), strength (1â€
 | Credit rating action | Upgrade, downgrade, outlook change | Balance-sheet health |
 | Regulatory or legal | SEBI order, tax demand, litigation | Downside risk |
 | Tone shift | Management language more cautious than last quarter | Soft, early signal (marked low reliability) |
+| Financial results *(amendment A1, 26 Sep 2026)* | "Q1 revenue up 15.99% to â‚¹221.88 crore" | Delivered performance for a completed period |
 
 ### Thesis confidence
 

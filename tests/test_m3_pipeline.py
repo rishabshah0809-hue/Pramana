@@ -365,3 +365,9 @@ def test_highlight_draws_on_the_page(imported, monkeypatch):
     png = documents.highlight_png(data, None, s["page"], s["passage_start"] + s["quote_start"],
                                   s["passage_start"] + s["quote_end"])
     assert png and png[:4] == b"\x89PNG"
+
+
+def test_typographic_variants_count_as_the_same():
+    src = "Non‑Promoter company’s shares"
+    assert validate.find_verbatim("Non-Promoter company's shares", src) == (0, len(src))
+    assert validate.find_verbatim("Non-Promoter", "Non–Promoter") is None   # en dash differs

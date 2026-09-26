@@ -19,6 +19,8 @@ SIGNAL_TYPES = {
     "credit_rating": "Credit rating action",
     "regulatory_legal": "Regulatory or legal",
     "tone_shift": "Tone shift",
+    # Brief amendment A1 (owner, 26 Sep 2026): reported results had no type in Section 5.
+    "financial_results": "Financial results",
 }
 # 14.15: what kind of statement it is. "Verified" only proves the quote exists.
 CLAIM_TYPES = {

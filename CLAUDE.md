@@ -36,6 +36,16 @@ These override every feature request. If a task conflicts with them, stop and fl
 - **Bulk and block deals (`app/adapters/bulk_block.py`).** **TEMPORARY EXCEPTION — accepted 26 Sep 2026 to unblock development.** Auto-fetches bulk.csv/block.csv daily, which violates NSE's terms of use. MUST be switched to manual upload before this app is used regularly or shared with anyone else. Revisit this at end of M6 (final milestone) before calling v1 done — do not let this become permanent by default.
   The Data Health page shows a permanent warning on this adapter while the exception is active.
 
+## Brief amendments (changelog)
+
+Changes the owner has approved to PRODUCT_BRIEF.md, recorded here so they stay traceable
+(brief Section 13, rule 10).
+
+- **A1 — 26 Sep 2026 — new signal type "Financial results" (Section 5).** Section 5 had no
+  type for reported revenue/profit figures, so results lines had no natural home. Added as
+  `financial_results` in `app/llm/schemas.py`; introduced with extraction prompt v2
+  (`app/llm/prompts/extract_v2.md`). Approved by the owner during M3.
+
 ## Practical notes
 
 - API keys live only in `.env` or `.streamlit/secrets.toml` (both git-ignored). Never in code, logs, the database or Git history.
