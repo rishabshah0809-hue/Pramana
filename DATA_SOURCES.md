@@ -3,20 +3,21 @@
 Every data source, its terms, refresh schedule and known limits. Updated at the end of
 every milestone.
 
-**Status: Milestone 1 in progress.** Before each adapter is written, its
-current endpoint, terms of use and free-tier limits will be checked. Anything paid,
-blocked or forbidden will be flagged to the owner, with a free alternative proposed,
-before any work continues.
+**Status: Milestone 2 (filings) built on `experiment`.** Before each adapter is written,
+its current endpoint, terms of use and free-tier limits are checked. Anything paid, blocked
+or forbidden is flagged to the owner, with a free alternative proposed, before any work
+continues.
 
 | Source | Provides | Trust tier | Planned refresh | Milestone | Terms verified? | Status |
 |---|---|---|---|---|---|---|
 | NSE equity list (EQUITY_L.csv) | Symbol ↔ ISIN master | 1 | Monthly, uploaded by the owner | M1 | **Checked 25 Sep 2026: manual download only** | Built: Company list page. App never contacts NSE |
 | Angel One SmartAPI | Live prices, historical candles (needs account + key + TOTP) | 1 | Live, 09:15–15:30 IST | M1 | **Checked 25 Sep 2026: free, official, see below** | Waiting for owner's API keys |
 | yfinance (`.NS`) | Delayed and end-of-day prices (unofficial library) | 2 | 15 min in market hours + 15:45 close | M1 | **Checked 25 Sep 2026: conflicts with Yahoo terms; owner accepted the risk** | Built. Labelled "Delayed · Yahoo" |
-| BSE / NSE corporate announcements | Results, board meetings, presentations, transcripts, orders, ratings | 1 | 15 min in market hours, hourly otherwise | M2 | Not yet | Not built |
-| Shareholding patterns | Promoter / FII / DII / public holdings, pledges | 1 | Quarterly, checked daily | M2 | Not yet | Not built |
-| Insider trading (SEBI PIT) and SAST | Insider buying and selling | 1 | Daily | M2 | Not yet | Not built |
-| Bulk and block deals | Large institutional trades | 1 | Daily after close | M2 | Not yet | Not built |
+| BSE list of scrips (List of Scrips CSV) | BSE code ↔ ISIN, BSE-only companies | 1 | Monthly, uploaded by the owner | M2 | **Checked 26 Sep 2026: manual download only** | Built: Company list page. App never contacts BSE for it |
+| BSE / NSE corporate announcements | Results, board meetings, presentations, transcripts, orders, ratings | 1 | NSE feeds: 5 min (weekdays 08:00–22:00), 30 min otherwise. BSE feed: 15 min in market hours, hourly otherwise | M2 | **Checked 26 Sep 2026: official RSS feeds** | Built: `announcements` adapter |
+| Shareholding patterns | Promoter / FII / DII / public holdings, pledges | 1 | Same feed checks as NSE announcements | M2 | **Checked 26 Sep 2026: official RSS feeds** | Built: `shareholding` adapter |
+| Insider trading (SEBI PIT) and SAST | Insider buying and selling | 1 | Same feed checks as NSE announcements | M2 | **Checked 26 Sep 2026: official RSS feeds** | Built: `insider_sast` adapter |
+| Bulk and block deals | Large institutional trades | 1 | Weekdays 18:30 IST | M2 | **Checked 26 Sep 2026: conflicts with NSE terms; owner accepted the risk** | Built: `bulk_block` adapter |
 | FII / DII daily activity | Net institutional flows | 1 | Daily after close | M2 | Not yet | Not built |
 | XBRL financial results | Structured quarterly P&L and balance sheet | 1 | Quarterly | M2 | Not yet | Not built |
 | AMFI mutual fund portfolios | Which funds hold which stocks | 1 | Monthly | M2 | Not yet | Not built |
@@ -73,6 +74,65 @@ machine before its adapter goes live.
   the owner's API keys are ready. Yahoo prices are always labelled "Delayed · Yahoo
   (tier 2)".
 
+## M2 terms check (26 Sep 2026)
+
+This check was done from the owner's own computer, which can reach the exchange websites.
+
+- **NSE terms (re-read).** The ban on "systematic or automated data collection activities
+  (including scraping, data mining, data extraction and data harvesting)" is still there.
+- **NSE RSS feeds.** NSE's [RSS page](https://www.nseindia.com/static/rss-feed) publishes 23
+  feeds and says RSS readers help "by automatically retrieving updates". The feeds are served
+  from `nsearchives.nseindia.com` and ask to be re-read every 5 minutes (`<ttl>5</ttl>`). The
+  app treats reading these feeds as the permitted, intended use.
+  - Each NSE feed holds only the latest **10–20 items**, and some items have no published time.
+  - NSE supports "only if changed" requests (ETag / Last-Modified), so unchanged feeds cost
+    almost nothing.
+- **BSE RSS feeds.** BSE's RSS section offers Sensex, Notices and Corporate Announcements
+  feeds for feed readers. The announcements feed (`www.bseindia.com/data/xml/announcements.xml`)
+  holds about 1,700 items, but most are mutual-fund NAV notices, so on busy nights it covers
+  only about 2 hours. Every item carries a BSE scrip code.
+- **BSE's own API** (`api.bseindia.com`) refused the request (403). It is **not** used.
+- **Filing files.** Each feed item links to its own file on `nsearchives.nseindia.com`,
+  `archives.nseindia.com` or `www.bseindia.com`. The terms neither allow nor forbid opening
+  these links automatically. They are downloaded for watchlist companies only (see decisions).
+- **NSE bulk/block deal files** (`nsearchives.nseindia.com/content/equities/bulk.csv` and
+  `block.csv`). These are daily reports, not feeds, so downloading them automatically falls
+  under NSE's ban.
+- **User agent.** Both exchanges accept an honest, identifying user agent
+  (`MosaicIndia/0.2 (personal research tool …)`). The app does not pretend to be a browser.
+- **BSE List of Scrips.** Downloaded by the owner in the browser. Its column names could not be
+  confirmed from here, so the upload accepts the common spellings and names any missing
+  column instead of guessing.
+
+## Owner decisions (26 Sep 2026)
+
+1. **Filing files:** downloaded automatically, **for watchlist companies only**. Everything
+   else is indexed from the feed (company, subject, time, link) without downloading the file.
+2. **Bulk and block deals:** the app downloads NSE's two daily files once each weekday at
+   18:30 IST, **by the owner's explicit choice, despite the NSE terms conflict above**.
+3. **Feed timing:** NSE feeds every 5 minutes on weekdays 08:00–22:00 and every 30 minutes
+   otherwise, matching the feeds' own guidance. This is more often than the brief's
+   "15 min / hourly", which would miss filings because the feeds hold so few items. BSE keeps
+   the brief's timing.
+
+## Known M2 limits
+
+- **Only new filings.** Feeds list recent items only. Anything older is added by the owner
+  under Document Viewer → Add a filing. Items that scroll off a feed between two checks are
+  missed; the 5-minute NSE timing keeps this rare.
+- **Company matching is exact** (14.4):
+  - BSE items are matched by BSE code (this needs BSE's list uploaded).
+  - NSE items are matched by exact company name (ignoring only letter case and spacing).
+  - Unmatched items are counted on Data Health and never guessed.
+- **Shareholding numbers** are read by code (no AI) from the XBRL file's category totals.
+  They were checked against a real NSE filing on 26 Sep 2026: promoter 49.13% + public 50.87%
+  = 100%.
+  - Only whether promoter shares are pledged (yes/no) is read. The pledged percentage is left
+    to the original filing until its exact place in the XBRL file is confirmed on a real
+    pledged example.
+- **Storage:** feed files are stored gzip-compressed. Expect roughly 1 GB a year, mostly BSE's
+  large feed.
+
 ## Internet hosts the app may contact (brief 14.12)
 
 The app refuses any host that isn't in this list (`app/adapters/registry.py`), and a test
@@ -81,7 +141,14 @@ keeps the list and this file in sync.
 | Source | Hosts | Last terms check |
 |---|---|---|
 | NSE equity list | none: uploaded by the owner, never fetched | 2026-09-25 |
+| BSE list of scrips | none: uploaded by the owner, never fetched | 2026-09-26 |
 | Yahoo (yfinance) | `query1.finance.yahoo.com`, `query2.finance.yahoo.com`, `fc.yahoo.com`, `guce.yahoo.com`, `consent.yahoo.com` | 2026-09-25 |
+| Company announcements (tier 1) | `nsearchives.nseindia.com`, `archives.nseindia.com`, `www.bseindia.com` (official RSS feeds and the filing files they link to) | 2026-09-26 |
+| Shareholding and pledges (tier 1) | `nsearchives.nseindia.com`, `archives.nseindia.com` | 2026-09-26 |
+| Insider trading and SAST (tier 1) | `nsearchives.nseindia.com`, `archives.nseindia.com` | 2026-09-26 |
+| Bulk and block deals (tier 1) | `nsearchives.nseindia.com` (conflicts with NSE terms; owner's choice) | 2026-09-26 |
+
+Never contacted: `www.nseindia.com` (NSE's main website and its API) and `api.bseindia.com`.
 
 ## Rules every adapter will follow (brief Section 4)
 

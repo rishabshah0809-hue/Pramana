@@ -68,6 +68,12 @@ def unknown_text(v) -> str:
     return f"{label} — {v.reason}"
 
 
+CONTENT_BADGE = {
+    "current": ("Content current", "green"), "partial": ("Content partly current", "orange"),
+    "stale": ("Content stale", "orange"), "no_data": ("No data yet", "gray"),
+    "timestamp_unknown": ("Content age unknown", "gray"),
+}
+
 STATUS_BADGE = {
     # fetch status
     "ok": ("Fetch OK", "green"), "stale": ("Fetch stale", "orange"),
@@ -76,5 +82,5 @@ STATUS_BADGE = {
     "never_run": ("Never fetched", "gray"),
     # content status
     "current": ("Content current", "green"), "partial": ("Content partly current", "orange"),
-    "no_data": ("No data yet", "gray"),
+    "no_data": ("No data yet", "gray"), "timestamp_unknown": ("Content age unknown", "gray"),
 }

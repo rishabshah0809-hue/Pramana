@@ -31,9 +31,16 @@ def test_every_registered_host_is_listed_in_data_sources():
         assert re.match(r"\d{4}-\d{2}-\d{2}", src.terms_checked)
 
 
-def test_nse_is_never_contacted_automatically():
+def test_exchange_hosts_are_limited_to_the_approved_ones():
+    # The company lists are always uploaded by the owner, never fetched.
     assert SOURCES["nse_equity_list"].hosts == ()
-    assert not any("nseindia" in h or "bseindia" in h for h in allowed_hosts())
+    assert SOURCES["bse_scrip_list"].hosts == ()
+    # Only the official feed / archive hosts approved on 26 Sep 2026 — never the main
+    # NSE website or BSE's unofficial API.
+    exchange = {h for h in allowed_hosts() if "nseindia" in h or "bseindia" in h}
+    assert exchange == {"nsearchives.nseindia.com", "archives.nseindia.com", "www.bseindia.com"}
+    assert "www.nseindia.com" not in allowed_hosts()
+    assert "api.bseindia.com" not in allowed_hosts()
 
 
 def test_network_guard_blocks_unlisted_hosts():

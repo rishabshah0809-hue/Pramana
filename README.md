@@ -6,8 +6,10 @@ fact back to exactly where it came from.
 
 > **Personal research tool. Not investment advice.**
 
-**Current stage: Milestone 1 (Companies and prices).** You can import NSE's company list,
-build a watchlist, and see delayed prices with timestamps and freshness badges.
+**Current stage: Milestone 2 (Filings).** You can import NSE's and BSE's company lists,
+build a watchlist, see delayed prices, and read your companies' filings (results, board
+meetings, presentations, transcripts, orders, ratings, shareholding, insider and SAST
+disclosures, bulk and block deals) exactly as the exchanges published them. No AI yet.
 
 ---
 
@@ -123,6 +125,40 @@ Without this list, prices may show "stale" on a market holiday until the next tr
 > your Angel One API is ready; see `DATA_SOURCES.md`. Live Angel One prices will replace it
 > as the main source.
 
+### 4. BSE's company list (about once a month)
+
+BSE's announcements carry only a BSE code, so the app needs BSE's list to know which
+company each one is about. On **Company list**, scroll to **BSE list of scrips** and follow the
+steps there: on BSE's page choose **Segment: Equity** and **Status: Active**, press **Submit**,
+click the download icon, and upload the file unedited.
+
+### 5. Filings
+
+- The app reads the official **RSS feeds** that NSE and BSE publish for feed readers:
+  - **NSE:** every 5 minutes on weekdays from 08:00 to 22:00, and every 30 minutes otherwise.
+  - **BSE:** every 15 minutes in market hours, and hourly otherwise.
+- For **watchlist companies**, the filing's own file (PDF, XML or ZIP) is downloaded and stored
+  unchanged in `data/raw/`.
+- Bulk and block deals come from NSE's two daily files, fetched at **18:30** on weekdays.
+- Open a company from the **Command Center** or **Watchlist** to see its **Filings**,
+  **Shareholding** and **Large deals** tabs.
+- **Open the original filing** shows it in the **Document Viewer**, with:
+  - its source, published time, fetch time, version and hash,
+  - a **Download original** button,
+  - a **Re-fetch from source** button. If the file has changed, the new copy is saved as a new
+    version beside the old one. Nothing is ever overwritten.
+- **Older filings:** the feeds only list recent items, so the app starts collecting from the
+  day it first runs. For anything older, download the file from NSE or BSE in your browser and
+  add it under **Document Viewer → Add a filing**.
+- **Past shareholding quarters:** upload the shareholding pattern's **XBRL (.xml)** file with
+  type "Shareholding pattern", and the trend chart will include it.
+- **Data Health** shows each feed's last success and error count. Its **Check now** button
+  runs a feed immediately.
+
+> **Note on bulk/block deals:** these come from NSE's daily report files, which NSE's terms
+> don't allow apps to download automatically. You chose to use them anyway (26 Sep 2026); see
+> `DATA_SOURCES.md`.
+
 ---
 
 ## Daily use
@@ -185,6 +221,11 @@ Follow the "what to do" line first.
 | "Yahoo returned no prices" / "Could not reach Yahoo" | Check your internet. The app retries automatically; the Data Health page shows when it last worked. |
 | "Yahoo is limiting requests" | Nothing to do: wait 15 minutes and it retries on its own. |
 | A price shows **Stale** on a market holiday | Add the holiday to `market_holidays` in `config.yaml` (see above). |
+| "The NSE … feed has changed its format" | Nothing to do right away: earlier filings are kept. If it lasts more than a day, tell Claude. |
+| "NSE refused the request" / "BSE asked the app to slow down" | Nothing to do: the app waits and tries again at the next check. |
+| A filing says "Not downloaded yet" | It downloads at the next check. If it keeps failing, open the link on the exchange website and add it under **Document Viewer → Add a filing**. |
+| "This doesn't look like BSE's List of Scrips" | Download it again from BSE (Segment: Equity, Status: Active) and upload it unedited. If it still fails, send Claude the first line of the file. |
+| Fetch status says **stale** for the feeds | The background checker isn't running. Close the app and start it again with `start.py`. |
 
 **Still stuck?** Send Claude:
 1. The exact PROBLEM / WHAT TO DO text from the screen, and

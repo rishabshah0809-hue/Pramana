@@ -30,9 +30,11 @@ except Exception as exc:  # never show a traceback to the owner
 pages = [
     st.Page("app/ui/Home.py", title="Command Center", icon=":material/dashboard:", default=True),
     st.Page("app/ui/Watchlist.py", title="Watchlist", icon=":material/list:"),
+    st.Page("app/ui/Company.py", title="Company", icon=":material/domain:"),
+    st.Page("app/ui/DocumentViewer.py", title="Document Viewer", icon=":material/description:"),
     st.Page("app/ui/Companies.py", title="Company list", icon=":material/upload_file:"),
     st.Page("app/ui/DataHealth.py", title="Data Health", icon=":material/monitor_heart:"),
-    # Later milestones add pages here: Company, Signal Feed, Thesis Builder, ...
+    # Later milestones add pages here: Signal Feed, Thesis Builder, ...
 ]
 st.navigation(pages).run()
 footer()

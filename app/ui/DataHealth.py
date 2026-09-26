@@ -3,14 +3,26 @@
 import streamlit as st
 
 from app.errors import FriendlyError, report
-from app.services import health
+from app.services import filings, health
 from app.services.status import setup_checks
 from app.timeutil import fmt_ist, from_iso
-from app.ui.common import STATUS_BADGE, show_error
+from app.ui.common import CONTENT_BADGE, STATUS_BADGE, show_error
 
 st.title("Data Health")
 st.caption("Fetch status (did the last download work?) and content age (how old is the data?) "
            "are shown separately, because a successful fetch can still return old data.")
+
+
+def check_now(source_id: str):
+    """Run one source now (the background scheduler also runs them on their schedules)."""
+    from app.adapters import announcements, bulk_block, insider_sast, shareholding
+    from app.services import prices
+
+    runners = {"yahoo_prices": prices.refresh, "announcements": announcements.run,
+               "shareholding": shareholding.run, "insider_sast": insider_sast.run,
+               "bulk_block": bulk_block.run}
+    return runners[source_id]()
+
 
 try:
     for h in health.all_sources():
@@ -19,7 +31,7 @@ try:
             st.caption(f"Trust tier {h.tier} · {'Automatic' if h.automated else 'Uploaded by you'}"
                        f" · Terms: {h.terms_status}")
             f_label, f_color = STATUS_BADGE.get(h.fetch_status, (h.fetch_status, "gray"))
-            c_label, c_color = STATUS_BADGE.get(h.content_status, (h.content_status, "gray"))
+            c_label, c_color = CONTENT_BADGE.get(h.content_status, (h.content_status, "gray"))
             cols = st.columns(4)
             cols[0].markdown(f"**Fetch**  \n:{f_color}-badge[{f_label}]  \n{h.fetch_note}")
             cols[1].markdown(f"**Content**  \n:{c_color}-badge[{c_label}]  \n{h.content_note}")

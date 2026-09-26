@@ -12,7 +12,7 @@ from pathlib import Path
 
 from app import paths
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _NOW = "(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))"
 
@@ -181,6 +181,105 @@ OPERATIONAL_TABLES = {
     """,
 }
 
+# Filings ingestion (M2, schema version 3). All append-only: nothing here is edited in place.
+FILING_TABLES = {
+    # One row per item seen in an exchange feed (the feed file itself is in documents).
+    "filings": f"""
+        id                 INTEGER PRIMARY KEY,
+        adapter            TEXT NOT NULL,
+        exchange           TEXT NOT NULL CHECK (exchange IN ('NSE', 'BSE')),
+        feed               TEXT NOT NULL,
+        category           TEXT NOT NULL,
+        company            TEXT REFERENCES companies(isin),  -- NULL = not matched (14.4)
+        match_method       TEXT,        -- isin | bse_code | nse_symbol | exact_name
+        company_name_raw   TEXT NOT NULL,
+        company_name_norm  TEXT NOT NULL,
+        exchange_code      TEXT,        -- BSE scrip code, when the feed gives one
+        subject            TEXT,
+        url                TEXT,        -- the filing's own file, NULL if the feed gives none
+        published_at       TEXT,        -- UTC; NULL = Unknown (14.2)
+        published_raw      TEXT,        -- exactly as the feed wrote it
+        feed_document_id   INTEGER NOT NULL REFERENCES documents(id),
+        item_key           TEXT NOT NULL UNIQUE,
+        first_seen_at      TEXT NOT NULL,
+        created_at         TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    # Corrections and superseded filings (14.5). The latest row per document is current.
+    "document_status": f"""
+        id             INTEGER PRIMARY KEY,
+        document_id    INTEGER NOT NULL REFERENCES documents(id),
+        status         TEXT NOT NULL CHECK (status IN ('original', 'revised', 'corrected',
+                                                       'cancelled', 'superseded')),
+        superseded_by  INTEGER REFERENCES documents(id),
+        reason         TEXT NOT NULL,
+        set_by         TEXT NOT NULL CHECK (set_by IN ('system', 'user')),
+        created_at     TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    # Shareholding pattern figures, exact decimals kept as text next to the source text (14.6).
+    "shareholding": f"""
+        id            INTEGER PRIMARY KEY,
+        company       TEXT NOT NULL REFERENCES companies(isin),
+        as_of_date    TEXT,              -- event time: the date the pattern is "as on"
+        category      TEXT NOT NULL,     -- promoter | fii | dii | public | ...
+        percent       TEXT,              -- Decimal as text, in percent; NULL = Unknown
+        source_text   TEXT NOT NULL,     -- the value exactly as written in the filing
+        document_id   INTEGER NOT NULL REFERENCES documents(id),
+        created_at    TEXT NOT NULL DEFAULT {_NOW},
+        UNIQUE (document_id, category)
+    """,
+    "bulk_block_deals": f"""
+        id              INTEGER PRIMARY KEY,
+        deal_type       TEXT NOT NULL CHECK (deal_type IN ('bulk', 'block')),
+        trade_date      TEXT NOT NULL,   -- event time
+        nse_symbol      TEXT NOT NULL,
+        security_name   TEXT,
+        company         TEXT REFERENCES companies(isin),
+        client_name     TEXT NOT NULL,
+        side            TEXT NOT NULL CHECK (side IN ('BUY', 'SELL')),
+        quantity        INTEGER NOT NULL,
+        quantity_text   TEXT NOT NULL,
+        price           TEXT NOT NULL,   -- Decimal as text
+        price_text      TEXT NOT NULL,
+        remarks         TEXT,
+        document_id     INTEGER NOT NULL REFERENCES documents(id),
+        row_key         TEXT NOT NULL UNIQUE,
+        created_at      TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    # Every download attempt, including "unchanged since last time".
+    "fetch_log": f"""
+        id             INTEGER PRIMARY KEY,
+        adapter        TEXT NOT NULL,
+        url            TEXT NOT NULL,
+        fetched_at     TEXT NOT NULL,
+        http_status    INTEGER,
+        outcome        TEXT NOT NULL CHECK (outcome IN ('new', 'new_version', 'unchanged',
+                                                        'not_modified', 'failed', 'skipped')),
+        content_hash   TEXT,
+        document_id    INTEGER REFERENCES documents(id),
+        etag           TEXT,
+        last_modified  TEXT,
+        message        TEXT,
+        created_at     TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    # Cross-source disagreements (14.6): never resolved silently.
+    "number_conflicts": f"""
+        id                INTEGER PRIMARY KEY,
+        company           TEXT NOT NULL REFERENCES companies(isin),
+        figure            TEXT NOT NULL,     -- e.g. 'shareholding:promoter:2026-06-30'
+        values_json       TEXT NOT NULL,     -- every source, tier, value and document
+        tolerance         TEXT NOT NULL,
+        displayed_source  TEXT NOT NULL,     -- highest-trust source, shown with a badge
+        conflict_key      TEXT NOT NULL UNIQUE,
+        created_at        TEXT NOT NULL DEFAULT {_NOW}
+    """,
+    "conflict_reviews": f"""
+        id           INTEGER PRIMARY KEY,
+        conflict_id  INTEGER NOT NULL REFERENCES number_conflicts(id),
+        note         TEXT,
+        created_at   TEXT NOT NULL DEFAULT {_NOW}
+    """,
+}
+
 # Columns added after schema version 1, applied to older databases on start.
 _ADDED_COLUMNS = {
     "prices": [("interval", "TEXT"), ("is_delayed", "INTEGER NOT NULL DEFAULT 0"),
@@ -188,7 +287,8 @@ _ADDED_COLUMNS = {
 }
 
 # Raw facts are append-only: new versions are inserted, old rows never change.
-APPEND_ONLY_TABLES = ("documents", "passages", "prices", "audit_log", "quality_scores")
+APPEND_ONLY_TABLES = ("documents", "passages", "prices", "audit_log", "quality_scores",
+                      *FILING_TABLES)
 
 
 def connect(path: Path | None = None) -> sqlite3.Connection:
@@ -208,7 +308,7 @@ def init_db(path: Path | None = None) -> Path:
     try:
         conn.execute("PRAGMA journal_mode = WAL")
         with conn:
-            for name, columns in {**TABLES, **OPERATIONAL_TABLES}.items():
+            for name, columns in {**TABLES, **OPERATIONAL_TABLES, **FILING_TABLES}.items():
                 conn.execute(f"CREATE TABLE IF NOT EXISTS {name} ({columns})")
             for name, cols in _ADDED_COLUMNS.items():
                 existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({name})")}
@@ -219,9 +319,19 @@ def init_db(path: Path | None = None) -> Path:
                 "CREATE INDEX IF NOT EXISTS idx_prices_company_ts "
                 "ON prices (company, interval, timestamp)"
             )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_runs_adapter ON adapter_runs (adapter, started_at)"
-            )
+            for index in (
+                "idx_runs_adapter ON adapter_runs (adapter, started_at)",
+                "idx_documents_url ON documents (url, version)",
+                "idx_filings_company ON filings (company, published_at)",
+                "idx_filings_code ON filings (exchange_code)",
+                "idx_filings_name ON filings (company_name_norm)",
+                "idx_filings_url ON filings (url)",
+                "idx_shareholding_company ON shareholding (company, as_of_date)",
+                "idx_deals_company ON bulk_block_deals (company, trade_date)",
+                "idx_fetch_log_url ON fetch_log (url, id)",
+                "idx_status_document ON document_status (document_id, id)",
+            ):
+                conn.execute(f"CREATE INDEX IF NOT EXISTS {index}")
             for name in APPEND_ONLY_TABLES:
                 for op in ("UPDATE", "DELETE"):
                     conn.execute(

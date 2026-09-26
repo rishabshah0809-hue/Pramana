@@ -1,0 +1,7 @@
+Security Code,Issuer Name,Security Id,Security Name,Status,Group,Face Value,ISIN No,Industry,Instrument
+599001,Fixture Alpha Ltd,FXALPHA,FIXTURE ALPHA LTD,Active,A,10.00,INE0FXA01011,Fixture Industry,Equity
+599002,Fixture Beta Limited,FXBETA,FIXTURE BETA LTD,Active,A,10.00,INE0FXB01019,Fixture Industry,Equity
+599004,Fixture Delta Ltd,FXDELTA,FIXTURE DELTA LTD,Active,B,10.00,INE0FXD01015,Fixture Industry,Equity
+599005,Fixture Suspended Ltd,FXSUSP,FIXTURE SUSP LTD,Suspended,Z,10.00,INE0FXE01013,Fixture Industry,Equity
+959999,Fixture Debt Ltd,FXDEBT,FIXTURE DEBT,Active,F,1000.00,INE0FXE01013,Fixture Industry,Debt
+599006,Fixture Bad Isin Ltd,FXBADI,FIXTURE BAD,Active,B,10.00,INE0FXD01099,Fixture Industry,Equity

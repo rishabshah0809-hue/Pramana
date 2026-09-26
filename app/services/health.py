@@ -12,11 +12,13 @@ from datetime import timedelta
 from app.adapters.registry import SOURCES
 from app.config import load_config
 from app.store import db
-from app.timeutil import from_iso, market_is_open, now_utc, parse_holidays, to_iso
+from app.timeutil import (IST, expected_last_session, from_iso, market_is_open, now_utc,
+                          parse_holidays, to_iso)
 
 FORMULA = ("40% × fetch success rate (last 7 days) + 30% × content freshness "
            "(current = 1, partial = 0.5, stale = 0) + 30% × validation pass rate (last run)")
 FRESHNESS_POINTS = {"current": 1.0, "partial": 0.5, "stale": 0.0}
+FEED_ADAPTERS = ("announcements", "shareholding", "insider_sast")
 
 
 @dataclass
@@ -39,13 +41,39 @@ class SourceHealth:
     validation_rate: float | None
 
 
+def last_deals_session(now, cfg):
+    """The latest session whose bulk/block files should be out by now (posted after close)."""
+    holidays = parse_holidays(cfg.get("market_holidays"))
+    session = expected_last_session(now, cfg["market_hours"]["open"], holidays)
+    after = cfg["schedules"]["bulk_block_deals"]["after_close"]
+    h, m = (int(x) for x in after.split(":"))
+    local = now.astimezone(IST)
+    if session == local.date() and (local.hour, local.minute) < (h, m):
+        prev = local.replace(hour=0, minute=0) - timedelta(minutes=1)
+        session = expected_last_session(prev, "00:00", holidays)
+    return session
+
+
 def _content(source_id: str, now) -> tuple[str, str]:
+    cfg = load_config()
     if source_id == "yahoo_prices":
         from app.services import prices
 
         return prices.content_status(now)
-    if source_id == "nse_equity_list":
-        days = int(load_config().get("freshness", {}).get("company_list_days", 35))
+    if source_id in FEED_ADAPTERS:
+        from app.services import filings
+
+        fresh = cfg.get("freshness", {})
+        days = (fresh.get("shareholding_days", 30) if source_id == "shareholding"
+                else fresh.get("filings_days", 3))
+        return filings.content_status(source_id, now, int(days))
+    if source_id == "bulk_block":
+        from app.adapters import bulk_block
+
+        return bulk_block.content_status(now, last_deals_session(now, cfg))
+    if source_id in ("nse_equity_list", "bse_scrip_list"):
+        days = int(cfg.get("freshness", {}).get("company_list_days", 35))
+        who = "NSE" if source_id == "nse_equity_list" else "BSE"
         conn = db.connect()
         try:
             r = conn.execute("SELECT fetched_at FROM documents WHERE source = ? "
@@ -57,8 +85,29 @@ def _content(source_id: str, now) -> tuple[str, str]:
         age = (now - from_iso(r["fetched_at"])).days
         if age <= days:
             return "current", f"Imported {age} day(s) ago"
-        return "stale", f"Imported {age} days ago — download a fresh list from NSE"
+        return "stale", f"Imported {age} days ago — download a fresh list from {who}"
     return "no_data", "Unknown source"
+
+
+def stale_after(source_id: str, now, cfg) -> timedelta | None:
+    """How long without a successful fetch before the fetch status reads "stale"."""
+    s = cfg["schedules"]
+    holidays = parse_holidays(cfg.get("market_holidays"))
+    open_now = market_is_open(now, cfg["market_hours"]["open"], cfg["market_hours"]["close"],
+                              holidays)
+    if source_id == "yahoo_prices":
+        every = int(s["prices_delayed"]["every_minutes"])
+        return timedelta(minutes=2 * every + 5) if open_now else None
+    if source_id in FEED_ADAPTERS:
+        from app.services import schedule
+
+        every = schedule.nse_every_minutes(now, cfg)
+        if source_id == "announcements":  # also carries the BSE feed
+            every = max(every, schedule.bse_every_minutes(now, cfg))
+        return timedelta(minutes=2 * every + 10)
+    if source_id == "bulk_block":
+        return timedelta(days=4)  # daily on weekdays; allows for a long weekend
+    return None
 
 
 def _runs(conn, source_id, now):
@@ -123,16 +172,13 @@ def source_health(source_id: str, now=None) -> SourceHealth:
 
     if last is None:
         fetch, note = "never_run", ("Not imported yet" if not src.automated
-                                    else "Never fetched yet — press 'Refresh prices now'")
+                                    else "Never fetched yet — press 'Check now'")
     else:
         fetch, note = last["fetch_status"], last["message"] or ""
-        if src.automated and fetch == "ok" and last_ok is not None:
-            every = int(cfg["schedules"]["prices_delayed"]["every_minutes"])
-            open_now = market_is_open(now, cfg["market_hours"]["open"],
-                                      cfg["market_hours"]["close"],
-                                      parse_holidays(cfg.get("market_holidays")))
-            if open_now and now - from_iso(last_ok["finished_at"]) > timedelta(minutes=2 * every + 5):
-                fetch, note = "stale", "No successful fetch recently during market hours"
+        limit = stale_after(source_id, now, cfg) if src.automated else None
+        if fetch == "ok" and last_ok is not None and limit is not None                 and now - from_iso(last_ok["finished_at"]) > limit:
+            fetch, note = "stale", ("No successful fetch recently. Is the background scheduler "
+                                    "running? Restarting with start.py starts it.")
     content, content_note = _content(source_id, now)
     q = compute_quality(source_id, now)
     return SourceHealth(

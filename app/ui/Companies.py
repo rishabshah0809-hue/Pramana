@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from app.adapters.bse_scrip_list import DOWNLOAD_PAGE as BSE_PAGE
 from app.adapters.nse_equity_list import DOWNLOAD_PAGE
 from app.errors import FriendlyError, report
 from app.services import companies

@@ -214,3 +214,29 @@ def content_status(now=None) -> tuple[str, str]:
     if all(q.freshness == "no_data" for q in quotes):
         return "no_data", "No prices fetched yet"
     return "stale", "No price is current"
+
+
+def daily_closes(isin: str) -> list[dict]:
+    """Stored daily closes for the Company page chart (latest version of each day's bar)."""
+    conn = db.connect()
+    try:
+        rows = conn.execute(
+            "SELECT timestamp, close, fetched_at FROM prices WHERE company = ? AND interval = '1d' "
+            "AND source = ? ORDER BY timestamp, id", (isin, SOURCE_ID)).fetchall()
+    finally:
+        conn.close()
+    latest = {}
+    for r in rows:  # later rows are newer versions of the same day's bar
+        latest[r["timestamp"]] = dict(r)
+    return [latest[k] for k in sorted(latest)]
+
+
+def company_quote(isin: str, now=None) -> Quote | None:
+    s, now = _settings(), now or now_utc()
+    conn = db.connect()
+    try:
+        row = conn.execute("SELECT isin, nse_symbol, name FROM companies WHERE isin = ?",
+                           (isin,)).fetchone()
+        return quote_for(conn, row, s, now) if row else None
+    finally:
+        conn.close()

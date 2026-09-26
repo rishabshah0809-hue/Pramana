@@ -33,7 +33,7 @@ def test_scheduler_jobs(db_ready):
 
     r = Recorder()
     scheduler.build(r)
-    assert r.ids == ["prices_intraday", "prices_close"]
+    assert r.ids == ["prices_intraday", "prices_close", "exchange_feeds", "bulk_block_deals"]
 
 
 def test_price_job_never_crashes(db_ready, monkeypatch):
@@ -42,3 +42,17 @@ def test_price_job_never_crashes(db_ready, monkeypatch):
 
     monkeypatch.setattr(scheduler.prices, "refresh", boom)
     scheduler.price_job(force=True)  # logs the error, does not raise
+
+
+def test_feed_and_deal_jobs_never_crash(db_ready, monkeypatch):
+    from app.adapters import announcements, bulk_block
+
+    def boom(*a, **k):
+        raise RuntimeError("fixture failure")
+
+    monkeypatch.setattr(announcements, "run", boom)
+    monkeypatch.setattr(bulk_block, "run", boom)
+    monkeypatch.setattr("app.adapters.shareholding.run", boom)
+    monkeypatch.setattr("app.adapters.insider_sast.run", boom)
+    scheduler.feeds_tick(force=True)  # logs the errors, does not raise
+    scheduler.deals_job()

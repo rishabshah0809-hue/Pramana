@@ -51,3 +51,50 @@ def fake_yahoo_frame(data: dict, interval: str):
     if not frames:
         return pd.DataFrame()
     return pd.concat(frames, axis=1)
+
+
+class FakeClient:
+    """FIXTURE stand-in for the polite exchange downloader: serves fixture bytes by URL,
+    or raises the FetchFailed / exception given for that URL. Records every URL asked for."""
+
+    def __init__(self, responses: dict):
+        self.responses = responses
+        self.calls: list[str] = []
+
+    def get(self, url, etag=None, last_modified=None):
+        from app.adapters.polite import Response
+
+        self.calls.append(url)
+        value = self.responses.get(url)
+        if value is None:
+            from app.adapters.polite import FetchFailed
+
+            raise FetchFailed("missing", "FIXTURE: no such file.", 404)
+        if isinstance(value, Exception):
+            raise value
+        return Response(url, 200, value)
+
+
+def fixture_pdf(pages: int = 2) -> bytes:
+    """FIXTURE: a small blank PDF made on the fly."""
+    import io
+
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument.new()
+    for _ in range(pages):
+        pdf.new_page(200, 300)
+    buf = io.BytesIO()
+    pdf.save(buf)
+    pdf.close()
+    return buf.getvalue()
+
+
+@pytest.fixture
+def with_bse(imported):
+    """FIXTURE company list plus FIXTURE BSE list (links BSE codes, adds a BSE-only company)."""
+    from app.services import companies
+
+    companies.import_bse_list((FIXTURES / "FIXTURE_List_of_Scrips.csv").read_bytes(),
+                              "FIXTURE_List_of_Scrips.csv")
+    return imported

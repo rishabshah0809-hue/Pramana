@@ -2,11 +2,15 @@
 
 How Mosaic India's parts fit together. Updated at the end of every milestone.
 
-**Status: Milestone 1 (Companies and prices) built on `experiment`.** Built so far:
-- the company master, imported from NSE's list, which you upload yourself
+**Status: Milestone 2 (Filings ingestion) built on `experiment`.** Built so far:
+- the company master, from NSE's and BSE's lists, which you upload yourself
 - the watchlist
-- delayed prices from Yahoo, with a background scheduler
-- the Command Center and Data Health pages
+- delayed prices from Yahoo
+- filings from the exchanges' official RSS feeds: announcements, shareholding and pledges,
+  insider and SAST disclosures
+- bulk and block deals from NSE's daily files
+- the raw document store, with versions and corrections
+- the Command Center, Company, Document Viewer and Data Health pages
 
 Angel One live prices will be added when the owner's API keys are ready. No AI yet.
 
@@ -22,7 +26,12 @@ flowchart LR
   D --> F[Alerts: in-app + Telegram]
 ```
 
-Built so far: **adapters** (NSE list parser, Yahoo prices), the **raw store** (uploaded NSE files), the **knowledge store** (companies, watchlist, prices), the **scheduler**, and the **dashboard**.
+Built so far:
+- **Adapters:** NSE and BSE list parsers, Yahoo prices, four filings adapters.
+- **Raw store:** every file as received, versioned.
+- **Parsing by code:** feed items, shareholding XBRL, deal files. No AI.
+- **Knowledge store:** companies, watchlist, prices, filings, shareholding, deals, conflicts.
+- **Scheduler** and **dashboard.**
 
 ## What happens when you run `start.py`
 
@@ -36,8 +45,14 @@ Built so far: **adapters** (NSE list parser, Yahoo prices), the **raw store** (u
    overwrites an existing `.env`.
 5. **Settings and database.** It loads `config.yaml`, then creates `data/mosaic.db` and
    `data/raw/` if missing. This is safe to repeat.
-6. **Scheduler.** It starts `python -m app.scheduler` in the background (log: `logs/scheduler.log`),
-   which refreshes prices every 15 minutes in market hours and at 15:45.
+6. **Scheduler.** It starts `python -m app.scheduler` in the background (log: `logs/scheduler.log`).
+   The scheduler:
+   - refreshes prices every 15 minutes in market hours and at 15:45;
+   - ticks every 5 minutes to check whichever exchange feeds are due
+     (`app/services/schedule.py`);
+   - fetches bulk and block deals at 18:30 on weekdays.
+
+   On start it reads every feed once.
 7. **Dashboard.** It starts Streamlit (`streamlit_app.py`) in the background on the first free port from 8501,
    waits until it answers, then opens the browser. Streamlit's own output goes to
    `logs/dashboard.log`.
@@ -96,17 +111,28 @@ So the cloud is for previewing only until the owner decides otherwise. Unexpecte
 | `app/services/prices.py` | Refresh with retries, append-only storage, quotes with exact decimal change (14.6) | Built |
 | `app/services/health.py` | Fetch status vs content age, quality score formula and history (14.3) | Built |
 | `app/ui/Watchlist.py`, `Companies.py`, `DataHealth.py` | Watchlist, Company list upload, Data Health pages | Built |
+| `app/adapters/polite.py` | The only way the app downloads from NSE/BSE: allowed hosts, 1 request/second per site, retries, honest user agent, "only if changed" requests, plain-English failures | Built |
+| `app/adapters/feeds.py` | Reads RSS feeds; flags a changed format instead of crashing | Built |
+| `app/adapters/announcements.py`, `shareholding.py`, `insider_sast.py`, `bulk_block.py` | The four M2 adapters (feed lists, XBRL shareholding parser, deal-file parser) | Built |
+| `app/adapters/bse_scrip_list.py` | Reads the uploaded BSE List of Scrips | Built |
+| `app/services/rawstore.py` | Saves raw files before anything reads them; versions; 14.5 statuses; fetch log | Built |
+| `app/services/ingest.py` | One adapter check: feeds → raw store → index → watchlist file downloads | Built |
+| `app/services/filings.py`, `matching.py` | Company timelines, keyword categories, exact-only matching (14.4) | Built |
+| `app/services/holdings.py`, `conflicts.py` | Shareholding trend, cross-source conflicts (14.6) | Built |
+| `app/services/documents.py` | Document Viewer: open, render, re-fetch, manual upload, status changes | Built |
+| `app/services/schedule.py` | Which feeds are due on each 5-minute tick | Built |
+| `app/ui/Company.py`, `DocumentViewer.py` | Company page (Screen 2) and Document Viewer (Screen 6) | Built |
 | `app/processing/` | Parse, chunk, extract, verify | M3 |
 | `app/llm/` | Groq and Gemini clients, versioned prompts | M3 |
-| `data/raw/` | Original documents, never modified (git-ignored) | Empty |
+| `data/raw/` | Original documents, never modified (git-ignored): `<source>/<IST date>/<name>_<hash>.<ext>`; feed files are gzip-compressed | Filled by M2 |
 | `data/mosaic.db` | SQLite database (git-ignored) | Created on start |
 | `logs/` | `mosaic.log` (rotating), `dashboard.log`, `install.log`, `startup-error.log` | Created on start |
-| `tests/` | pytest suite; `tests/golden/` holds the M3 golden set | 68 tests; `tests/fixtures/` holds labelled made-up data |
+| `tests/` | pytest suite; `tests/golden/` holds the M3 golden set | 97 tests; `tests/fixtures/` holds labelled made-up data |
 | `.streamlit/config.toml` | Dark theme, no usage stats, no error details on screen | Built |
 
 ## Database (brief Section 9)
 
-SQLite in WAL mode, created by `app/store/db.py`. Schema version is 1, stored in `PRAGMA user_version`.
+SQLite in WAL mode, created by `app/store/db.py`. Schema version is 3, stored in `PRAGMA user_version`.
 
 - **13 tables:** companies, relationships, people, watchlist, prices, documents,
   passages, signals, theses, claims, evidence, alerts and audit_log.
@@ -154,6 +180,50 @@ SQLite in WAL mode, created by `app/store/db.py`. Schema version is 1, stored in
   - three price columns: `interval`, `is_delayed` and `currency`.
 
   Older databases are upgraded automatically on start.
+
+## Milestone 2 design notes
+
+- **Schema version 3** adds these tables. All are append-only, enforced by database triggers:
+
+  | Table | Holds |
+  |---|---|
+  | `filings` | One row per feed item: exchange, feed, category, company (or unlinked), raw company name, BSE code, subject, file link, published time (or Unknown) and the exact published text, plus the stored feed file it came from (lineage) |
+  | `document_status` | 14.5 statuses (original, revised, corrected, cancelled, superseded, with a link to the replacement). The latest row counts. |
+  | `shareholding` | Category percentages as exact decimals (as text), next to the value exactly as written in the filing |
+  | `bulk_block_deals` | One row per deal, with the original text of quantity and price |
+  | `fetch_log` | Every download attempt: new, new_version, unchanged, not_modified, failed |
+  | `number_conflicts`, `conflict_reviews` | 14.6 conflicts, and the owner's review of them |
+
+- **Store first, read second.** Every feed file and filing file is saved under `data/raw/`
+  and registered in `documents` (URL, published time, fetch time, SHA-256, version, terms)
+  before it is parsed.
+  - The same URL with new content becomes version *n*+1, and the old row gets a "superseded"
+    status. Nothing is overwritten.
+  - Identical content adds only an "unchanged" `fetch_log` row.
+- **Company matching (14.4):**
+  - shareholding files are matched by the ISIN inside the XBRL file;
+  - BSE items by BSE code;
+  - NSE items by exact name.
+
+  Matching is also done at display time, so items from before the BSE list was uploaded
+  link up afterwards. A name shared by two companies matches neither.
+- **Categories and corrections** come from fixed keyword rules on the exchange's own subject
+  line (`filings.classify`, `filings.status_from_subject`). No AI.
+- **Shareholding** values are read from the XBRL category totals. The unit is decided by the
+  "total" row: 1 means fractions, 100 means percent. If the total is anything else, every value
+  is stored as Unknown with the reason.
+- **Two-part health (14.3)** for the new sources:
+  - **Fetch status** is the worst status among a check's feeds. One failed feed never stops
+    the others, and the message names it.
+  - **Content age** is the newest item's published time, compared with `freshness.filings_days`.
+  - Bulk/block deals compare the newest trade date with the latest session whose files should
+    be out (after 18:30).
+- **Downloads** go only through `PoliteClient`:
+  - hosts are checked against the registry;
+  - at most 1 request per second per website;
+  - retries after 2 s and 4 s (none for a refusal or a missing file);
+  - a 40 MB cap per file;
+  - ETag / Last-Modified are re-sent, so NSE answers "not modified" when nothing changed.
 
 ## Error handling rule
 

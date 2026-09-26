@@ -23,7 +23,8 @@ try:
         query = st.text_input("Search by name, NSE symbol or ISIN", placeholder="e.g. HDFC BANK or TCS")
         for c in companies.search(query):
             row = st.columns([6, 1])
-            row[0].markdown(f"**{c['name']}** · `{c['nse_symbol']}` · {c['isin']}")
+            code = c["nse_symbol"] or f"BSE {c['bse_code']}"
+            row[0].markdown(f"**{c['name']}** · `{code}` · {c['isin']}")
             if row[1].button("Add", key=f"add-{c['isin']}"):
                 try:
                     watchlist.add(c["isin"], max_companies=max_n)
@@ -39,8 +40,10 @@ try:
         st.caption("None yet.")
     for it in items:
         row = st.columns([6, 1])
-        row[0].markdown(f"**{it['name']}** · `{it['nse_symbol']}` · added "
+        row[0].markdown(f"**{it['name']}** · `{it['nse_symbol'] or '—'}` · added "
                         f"{fmt_ist(from_iso(it['added_on']))}")
+        row[0].page_link("app/ui/Company.py", label="Open company page",
+                         query_params={"isin": it["isin"]}, icon=":material/domain:")
         confirm_key = f"confirm-{it['isin']}"
         if st.session_state.get(confirm_key):
             c1, c2 = row[1].columns(2)

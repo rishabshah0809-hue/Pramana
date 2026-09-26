@@ -28,6 +28,8 @@ market_holidays: []
 freshness:
   intraday_price_minutes: 45        # during market hours (Yahoo is ~15 min delayed)
   company_list_days: 35             # re-download NSE's list about once a month
+  filings_days: 3                   # newest feed item older than this = "stale" content
+  shareholding_days: 30             # shareholding is quarterly, so its feed is quieter
 
 # How often each data source is fetched (filled in as each adapter is built)
 schedules:
@@ -35,10 +37,18 @@ schedules:
   prices_delayed:
     every_minutes: 15               # during market hours
     after_close: "15:45"            # one more fetch for the closing prices
-  announcements: ""
-  shareholding: ""
-  insider_trades: ""
-  bulk_block_deals: ""
+  # Official exchange RSS feeds (M2). NSE's feeds keep only 10-20 items and ask to be
+  # re-checked every 5 minutes, so they are checked often on busy weekday hours.
+  nse_feeds:
+    busy_every_minutes: 5
+    busy_days: mon-fri
+    busy_hours: "08:00-22:00"       # IST, start inclusive, end exclusive
+    quiet_every_minutes: 30         # nights and weekends
+  bse_feed:
+    market_every_minutes: 15        # during market hours
+    other_every_minutes: 60         # otherwise
+  bulk_block_deals:
+    after_close: "18:30"            # IST, weekdays; NSE posts the day's files after the close
   fii_dii_activity: ""
   xbrl_results: ""
   amfi_portfolios: ""
@@ -51,6 +61,17 @@ schedules:
 rate_limits:
   yahoo_prices:
     max_attempts: 3                 # retries with waits of 2s, 4s, 8s
+  exchanges:                        # NSE and BSE (feeds, attachments, daily files)
+    min_seconds_between_requests: 1.0   # per website; the brief allows "a few per second" at most
+    max_attempts: 3                 # retries with waits of 2s, 4s, 8s
+    timeout_seconds: 30
+    attachments_per_run: 25         # filing files downloaded per check (watchlist companies only)
+    max_file_mb: 40                 # larger files are skipped and reported
+    user_agent: "MosaicIndia/0.2 (personal research tool; single user; polite, rate-limited)"
+
+# Cross-source number checks (brief 14.6): differences larger than this are "conflicts"
+conflicts:
+  shareholding_percent_points: "0.01"
 
 # AI models. Names live here, never in code, because free-tier models change.
 ai:

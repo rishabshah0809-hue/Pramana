@@ -5,7 +5,7 @@ import streamlit as st
 from app.errors import FriendlyError, report
 from app.services import companies, health, prices, watchlist
 from app.timeutil import fmt_ist, now_utc
-from app.ui.common import STATUS_BADGE, fmt_inr, fmt_signed, show_error, unknown_text
+from app.ui.common import CONTENT_BADGE, STATUS_BADGE, fmt_inr, fmt_signed, show_error, unknown_text
 
 st.title("Mosaic India")
 st.markdown('<p class="mosaic-subtitle">Command Center · evidence-first research on Indian stocks</p>',
@@ -51,6 +51,8 @@ try:
                                f"Fetched {fmt_ist(q.price.fetched_time)}")
                 else:
                     st.markdown(f"**{unknown_text(q.price)}**")
+                st.page_link("app/ui/Company.py", label="Filings and shareholding",
+                             query_params={"isin": q.isin}, icon=":material/domain:")
 
     st.subheader("Newest signals")
     st.caption("Insufficient evidence — signals are extracted from filings starting in "
@@ -59,7 +61,7 @@ try:
     st.subheader("Data health")
     for h in health.all_sources():
         f_label, f_color = STATUS_BADGE.get(h.fetch_status, (h.fetch_status, "gray"))
-        c_label, c_color = STATUS_BADGE.get(h.content_status, (h.content_status, "gray"))
+        c_label, c_color = CONTENT_BADGE.get(h.content_status, (h.content_status, "gray"))
         score = "Unknown" if h.score is None else f"{h.score:.0f}/100"
         st.markdown(f"**{h.name}** · :{f_color}-badge[{f_label}] :{c_color}-badge[{c_label}] "
                     f"· quality {score}")
