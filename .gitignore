@@ -16,3 +16,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .DS_Store
+
+# Golden test set: the filings themselves and run results stay local (public repo;
+# exchanges forbid redistributing their files)
+tests/golden/docs/
+tests/golden/.run/
+tests/golden/results/

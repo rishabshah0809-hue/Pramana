@@ -2,7 +2,7 @@
 
 How Pramana's parts fit together (the app was called Mosaic India until 26 Sep 2026). Updated at the end of every milestone.
 
-**Status: Milestone 2 (Filings ingestion) built on `experiment`.** Built so far:
+**Status: Milestone 3 (AI extraction) built on `experiment`; golden-set score pending.** Built so far:
 - the company master, from NSE's and BSE's lists, which you upload yourself
 - the watchlist
 - delayed prices from Yahoo
@@ -11,8 +11,10 @@ How Pramana's parts fit together (the app was called Mosaic India until 26 Sep 2
 - bulk and block deals from NSE's daily files
 - the raw document store, with versions and corrections
 - the Command Center, Company, Document Viewer and Data Health pages
+- the AI pipeline (brief Section 6), the Signal Feed and Needs review pages, and the golden
+  test-set harness
 
-Angel One live prices will be added when the owner's API keys are ready. No AI yet.
+Angel One live prices will be added when the owner's API keys are ready.
 
 ## The big picture (from the brief, Section 8)
 
@@ -240,6 +242,55 @@ SQLite in WAL mode, created by `app/store/db.py`. Schema version is 3, stored in
   - retries after 2 s and 4 s (none for a refusal or a missing file);
   - a 40 MB cap per file;
   - ETag / Last-Modified are re-sent, so NSE answers "not modified" when nothing changed.
+
+## Milestone 3 design notes
+
+- **One AI client (`app/llm/client.py`).**
+  - Groq and Gemini sit behind one `call(task, prompt, parts)`. `config.yaml` (`ai.tasks`) names
+    each task's primary and fallback provider, model and temperature.
+  - Prompts are versioned files (`app/llm/prompts/<name>_<version>.md`), selected by `ai.prompts`.
+  - **Privacy guardrail:** a prompt can only be filled with `PublicText` (built from passages of
+    stored public filings) or `ClaimText` (a claim extracted from one). Anything else raises
+    `PrivateDataError` before a call is made. A test checks that `app/llm` and `app/processing`
+    never touch thesis, claim or evidence tables.
+  - **Every call** is an `audit_log` row (actor `ai`, action `llm_call`): provider, model,
+    prompt version, input hash, raw output, outcome and tokens. The code's verdict on it is a
+    second row (`llm_validation`).
+- **Limits (`app/llm/limits.py`).** Usage is counted from those audit rows.
+  - Before each call the model's per-minute and per-day limits are checked, with a 90% safety
+    margin. A per-minute limit waits about a minute; a per-day limit stops the run until the reset.
+  - A provider's own "slow down" answer blocks that model until the time it names.
+- **Pipeline (`app/processing/`), one module per Section 6 step:**
+
+  | Step | Module | What it does |
+  |---|---|---|
+  | a | `chunk` | pypdfium2 text per page; passages never cross a page, at most `chunk_chars`; scanned pages become `no_text` and are never sent |
+  | b | `extract` | one passage per call, strict JSON (`app/llm/schemas.py`) |
+  | c | `validate` | verbatim quote (whitespace-insensitive only), numbers as exact decimals, exact company match; fuzzy names only as suggestions (14.4) |
+  | d | `crosscheck` | a different provider answers yes / partly / no |
+  | e | `label` | yes → verified; partly or no → needs_review; unavailable → unverified (retried later) |
+  | f | `summarize` | cited sentences only; numbers must be in the cited chunk; coverage stored |
+  | — | `structured_signals` | code-built `fact` signals from shareholding XBRL, insider XBRL and bulk/block deals |
+
+- **Queue (`pipeline.run_queue`).** Runs every `ai.processing.every_minutes`.
+  - It builds structured signals, chunks new documents, re-flags signals whose source was
+    superseded, extracts pending passages (watchlist companies first, then by filing type, then
+    newest), retries missing cross-checks, and writes summaries for transcripts and presentations.
+  - It stops when a limit is reached; the work stays queued. Its state is shown on Data Health.
+- **Schema version 4:**
+  - `passages` gains `member`, `kind` and `extraction_version`.
+  - `signals` gains `claim_type`, `quote` and quote offsets, `document_id`, `source_tier`,
+    `cross_check`, `provider`, `call_id` and `dedupe_key`, and becomes append-only.
+  - New append-only tables: `signal_status` (status history), `extraction_rejections` (the
+    rejected log), `passage_extractions`, `summaries` and `company_match_reviews`.
+- **Highlighting.** A signal's quote offsets are relative to its passage, and the passage's
+  offsets to its page's text. `documents.highlight_png` asks pypdfium2 for the character boxes
+  of that span and draws them on the rendered page.
+- **Golden set (`tests/golden/`).**
+  - `manifest.yaml` lists 20 real filings (URL, SHA-256, expected signals). The files stay
+    local (git-ignored) because the repository is public.
+  - `fetch.py` downloads them; `score.py` runs the real pipeline in `tests/golden/.run/` and
+    scores it. The fabricated-quote check is independent of the pipeline.
 
 ## Error handling rule
 

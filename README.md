@@ -9,10 +9,11 @@ fact back to exactly where it came from.
 
 > **Personal research tool. Not investment advice.**
 
-**Current stage: Milestone 2 (Filings).** You can import NSE's and BSE's company lists,
-build a watchlist, see delayed prices, and read your companies' filings (results, board
-meetings, presentations, transcripts, orders, ratings, shareholding, insider and SAST
-disclosures, bulk and block deals) exactly as the exchanges published them. No AI yet.
+**Current stage: Milestone 3 (AI extraction) — being tested.** You can import NSE's and BSE's
+company lists, build a watchlist, see delayed prices, and read your companies' filings exactly
+as the exchanges published them. AI now reads those filings and lists **signals** (orders,
+guidance, margins, ratings, governance red flags and more). Every signal opens the exact
+highlighted words it came from, and code checks each one before it is saved.
 
 ---
 
@@ -72,8 +73,9 @@ and press **Ctrl + C** (or just close the window).
 ### Your keys file (.env)
 
 The first time you start the app, it creates a private file called `.env` in the project folder.
-Later, you'll paste your free API keys into it (Angel One, Groq, Gemini, Telegram). **No keys
-are needed yet.** You'll be told exactly when each one is needed and how to get it.
+Paste your free API keys into it. **Groq and Gemini keys are needed from Milestone 3** (the AI
+steps); Angel One and Telegram come later. Without the AI keys the app still works — the AI
+work simply waits in the queue, and the Setup check on Data Health says which key is missing.
 
 `.env` stays on your computer only. It is never uploaded to GitHub.
 
@@ -162,6 +164,32 @@ click the download icon, and upload the file unedited.
 > don't allow apps to download automatically. You chose to use them anyway (26 Sep 2026); see
 > `DATA_SOURCES.md`.
 
+### 6. AI signals (Milestone 3)
+
+- **What the AI does:** it reads your watchlist companies' filings, one passage at a time, and
+  lists signals. It never supplies facts of its own.
+- **What code checks before anything is saved:**
+  - the quote must be word-for-word in the filing;
+  - every number in the claim must be in the quote;
+  - the company must match exactly.
+  Anything that fails is **Rejected**: it is kept in a log and never shown as fact.
+- **The second opinion:** a second AI model (Gemini) is asked only "Does this passage support
+  this claim? Yes, partly or no?".
+  - **Verified** = the code checks passed and the second model said yes.
+  - **Needs review** = the second model disagreed. Decide these on the **Needs review** page.
+  - **Unverified** = the code checks passed but the second check hasn't run yet.
+- **Verified proves the filing says it — not that it is true.** The purple tag says what kind of
+  statement it is: fact, company claim, guidance, target, and so on.
+- **Where to look:**
+  - **Signal Feed:** every signal, with filters.
+  - **Company → Signals / Summaries:** one company's signals and document summaries.
+  - **Document Viewer:** the cited words highlighted on the original page.
+- **Free-tier limits:** the AI is used within its free daily limits. When a limit is reached, the
+  work waits in the **AI queue** (Data Health) and resumes by itself. Watchlist companies go
+  first. Roughly 60–80 filing pages a day can be read.
+- **What the AI providers see:** only public filing text is ever sent. Gemini's free tier may use
+  what it receives to improve Google's products, so nothing private is ever sent to it.
+
 ---
 
 ## Daily use
@@ -229,6 +257,9 @@ Follow the "what to do" line first.
 | A filing says "Not downloaded yet" | It downloads at the next check. If it keeps failing, open the link on the exchange website and add it under **Document Viewer → Add a filing**. |
 | "This doesn't look like BSE's List of Scrips" | Download it again from BSE (Segment: Equity, Status: Active) and upload it unedited. If it still fails, send Claude the first line of the file. |
 | Fetch status says **stale** for the feeds | The background checker isn't running. Close the app and start it again with `start.py`. |
+| "The AI step is waiting: … daily limit reached" | Nothing to do: the free daily limit was used up. The queue resumes by itself at the time shown on Data Health. |
+| "No key for Groq" / "No key for Google Gemini" | Paste the key into `.env` (see "Your keys file" above), then restart with `start.py`. |
+| "Blocked: the app tried to send … to an AI provider" | A safety stop — only public filing text may be sent. Tell Claude which screen you were on. |
 
 **Still stuck?** Send Claude:
 1. The exact PROBLEM / WHAT TO DO text from the screen, and

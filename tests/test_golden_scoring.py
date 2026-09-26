@@ -51,3 +51,9 @@ def test_wrong_type_or_direction_does_not_match():
     e = DOCS[0]["expected"][1]
     assert not g.matches(e, it("D1", "order_win", "an order worth", direction="negative"))
     assert not g.matches(e, it("D1", "demand_commentary", "an order worth"))
+
+
+def test_expected_type_can_list_alternatives():
+    e = {"signal_type": ["demand_commentary", "cost_margin"], "key_quote": "Revenue grew"}
+    assert g.matches(e, it("D1", "cost_margin", "Revenue grew 54%"))
+    assert not g.matches(e, it("D1", "order_win", "Revenue grew 54%"))

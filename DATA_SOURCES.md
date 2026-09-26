@@ -3,7 +3,7 @@
 Every data source, its terms, refresh schedule and known limits. Updated at the end of
 every milestone.
 
-**Status: Milestone 2 (filings) built on `experiment`.** Before each adapter is written,
+**Status: Milestone 3 (AI extraction) built on `experiment`.** Before each adapter is written,
 its current endpoint, terms of use and free-tier limits are checked. Anything paid, blocked
 or forbidden is flagged to the owner, with a free alternative proposed, before any work
 continues.

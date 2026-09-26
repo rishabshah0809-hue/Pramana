@@ -45,7 +45,9 @@ def item_key(doc_id: str, signal_type: str, quote: str) -> str:
 
 
 def matches(expected: dict, item: dict) -> bool:
-    if expected["signal_type"] != item["type"]:
+    allowed = expected["signal_type"]
+    allowed = allowed if isinstance(allowed, list) else [allowed]
+    if item["type"] not in allowed:
         return False
     if norm(expected["key_quote"]) not in norm(item["quote"]):
         return False

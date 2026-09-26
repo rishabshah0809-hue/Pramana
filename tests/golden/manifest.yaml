@@ -9,7 +9,7 @@
 # draft or any Verified item is still waiting for the owner's judgement.
 #
 # Matching rule: a Verified item counts as matching an expected signal when the signal
-# types are equal and the expected key_quote appears inside the item's quote (spaces and
+# type is the expected one (or one of a listed set) and the expected key_quote appears inside the item's quote (spaces and
 # line breaks ignored). "direction: any" / "claim_type: any" means not checked.
 # "required: false" marks an acceptable extra that does not count against recall.
 #
@@ -103,6 +103,237 @@ documents:
     status: draft
     expected: []
 
-# G07-G20: to be chosen from weekday feeds (3 earnings-call transcripts, 2 investor
-# presentations, 2 results press releases, 2 order wins, 2 credit rating actions,
-# 1 auditor resignation / governance, 1 tax demand or litigation, 1 capex / new plant).
+  # --- G07-G20 chosen 26 Sep 2026 from NSE's archive (weekend feeds were thin) -----------
+  - id: G07
+    title: Suntech Infra Solutions — work order for piling, INR 37.00 crore
+    url: https://nsearchives.nseindia.com/corporate/SUNTECH_23092026144340_Work_Order.pdf
+    file: G07_suntech_order.pdf
+    sha256: 94e65eedfdb9452981517c2a1013d8a863006555c4f129cafb0ad14569607268
+    category: order
+    company: {id: INE0SGZ01016, name: Suntech Infra Solutions Limited, nse_symbol: SUNTECH}
+    why: Order win with value; customer not named
+    status: draft
+    expected:
+      - {signal_type: order_win, direction: positive, claim_type: any,
+         key_quote: "receipt of a Work Order for Execution of Pilling Work"}
+
+  - id: G08
+    title: Sathlokhar Synergys — Godrej order, order book and FY27 growth guidance
+    url: https://nsearchives.nseindia.com/corporate/SATHLOKHAR_07092026071739_IntimationunderRegulation30.pdf
+    file: G08_sathlokhar_order.pdf
+    sha256: 2afee72d944604e2119a04c0a5f94de7b13b76365653dd83e56532a1ce5b915a
+    category: order
+    company: {id: "GOLDEN:SSEGL", name: Sathlokhar Synergys E&C Global Limited, nse_symbol: SSEGL}
+    why: Order win plus order book and management guidance in one filing
+    status: draft
+    expected:
+      - {signal_type: order_win, direction: positive, claim_type: any,
+         key_quote: "Total Order value is estimated at INR 44.26 Crores"}
+      - {signal_type: demand_commentary, direction: positive, claim_type: any,
+         key_quote: "confirmed orders aggregating to ₹1,139.10 crores"}
+      - {signal_type: management_guidance, direction: positive, claim_type: guidance,
+         key_quote: "revenue growth guidance of approximately 70%"}
+      - {signal_type: demand_commentary, direction: positive, claim_type: any, required: false,
+         key_quote: "submitted bids for projects aggregating to approximately ₹22,654 crores"}
+
+  - id: G09
+    title: Aditya Birla Lifestyle Brands — GST demand order (₹3,10,13,33,083)
+    url: https://nsearchives.nseindia.com/corporate/ABLBL_31032026180458_SE_Demand_order.pdf
+    file: G09_ablbl_gst_demand.pdf
+    sha256: e67e58926256d880f582f409f6bfcfe3f4f53862cccc0485d4855f00e61e3699
+    category: other
+    company: {id: "GOLDEN:ABLBL", name: Aditya Birla Lifestyle Brands Limited, nse_symbol: ABLBL, bse_code: "544403"}
+    why: Tax demand (regulatory/legal); the order is in the name of another listed company
+    status: draft
+    expected:
+      - {signal_type: regulatory_legal, direction: negative, claim_type: fact,
+         key_quote: "Total Demand ₹ 3,10,13,33,083"}
+      - {signal_type: regulatory_legal, direction: any, claim_type: company_claim, required: false,
+         key_quote: "The Company believes that the said demand is not tenable"}
+
+  - id: G10
+    title: Supreme Power Equipment — commercial production at new transformer plant
+    url: https://nsearchives.nseindia.com/corporate/SPEL_25022026195028_Reg_30_Intimation_of__Commencement_of_commerical_Production.pdf
+    file: G10_supreme_power_capex.pdf
+    sha256: d192f7fd6afe63bb2936316b394a38a530ca09dd337a28b6c03d333926466868
+    category: other
+    company: {id: "GOLDEN:SUPREMEPWR", name: Supreme Power Equipment Limited, nse_symbol: SUPREMEPWR}
+    why: Capex / new capacity commissioned
+    status: draft
+    expected:
+      - {signal_type: capex_expansion, direction: positive, claim_type: fact,
+         key_quote: "successfully commenced commercial production"}
+      - {signal_type: capex_expansion, direction: positive, claim_type: any, required: false,
+         key_quote: "the total manufacturing capacity of the company is up to 200 MVA"}
+
+  - id: G11
+    title: Ganga Bath Fittings — resignation of statutory auditor
+    url: https://nsearchives.nseindia.com/corporate/GBFLMD_05032026195212_Ganga_Bath_Intimation_Auditor_Resignation_new_Signed.pdf
+    file: G11_gangabath_auditor.pdf
+    sha256: 382a1864bdb5e73073f6c82f6af6862326cae1472cc5937fa77710ddfeb5efc0
+    category: other
+    company: {id: "GOLDEN:GANGABATH", name: Ganga Bath Fittings Limited, nse_symbol: GANGABATH}
+    why: Governance red flag; the filing has a typo ("resignation a Statutory Auditors"), a verbatim test
+    status: draft
+    expected:
+      - {signal_type: governance_red_flag, direction: negative, claim_type: fact,
+         key_quote: "have tendered their resignation a Statutory Auditors of the Company"}
+      - {signal_type: governance_red_flag, direction: any, claim_type: any, required: false,
+         key_quote: "due to restructuring at the firm level"}
+
+  - id: G12
+    title: Sona Comstar — Q1 FY27 results press release (orders, strategy)
+    url: https://nsearchives.nseindia.com/corporate/SONACOMS_23072026165213_PressRelease.pdf
+    file: G12_sona_results.pdf
+    sha256: a72005787cb2a53e8408b79e69c8aa439b0d3152bd7a3020a1977f553f59914d
+    category: results
+    company: {id: "GOLDEN:SONACOMS", name: Sona BLW Precision Forgings Limited, nse_symbol: SONACOMS, bse_code: "543300"}
+    why: Results with order wins and a long-term target; Section 5 has no "results" type
+    status: draft
+    expected:
+      - {signal_type: order_win, direction: positive, claim_type: any,
+         key_quote: "This program has added Rs 6.4 billion to our order book"}
+      - {signal_type: order_win, direction: positive, claim_type: any, required: false,
+         key_quote: "This program has added Rs 900 million to our order book"}
+      - {signal_type: order_win, direction: positive, claim_type: any, required: false,
+         key_quote: "This program has added Rs 2.1 billion to our order book"}
+      - {signal_type: [demand_commentary, cost_margin], direction: positive, claim_type: any,
+         required: false, key_quote: "Revenue of Rs. 1,310 crores with 54% YoY growth"}
+      - {signal_type: management_guidance, direction: positive, claim_type: target, required: false,
+         key_quote: "aspiration to repeat 10 times revenue growth"}
+
+  - id: G13
+    title: Kapston Services — Q1 FY27 results press release (OCR text layer)
+    url: https://nsearchives.nseindia.com/corporate/KAPSTON_11082026175004_Pressrelease.pdf
+    file: G13_kapston_results.pdf
+    sha256: 016f18a7730ac6b3c5a2162e088df0e074f43b4bc441189ce1d033f32006fab5
+    category: results
+    company: {id: "GOLDEN:KAPSTON", name: Kapston Services Limited, nse_symbol: KAPSTON}
+    why: Results from an OCR'd page (₹ reads as "X"); tests verbatim on imperfect text
+    status: draft
+    expected:
+      - {signal_type: [demand_commentary, cost_margin], direction: positive, claim_type: any,
+         required: false, key_quote: "Revenue of 221.88 crore, up by 15.99%"}
+      - {signal_type: cost_margin, direction: positive, claim_type: any, required: false,
+         key_quote: "EBITDA of X 14.76 crore, up by 51.85%"}
+      - {signal_type: capex_expansion, direction: any, claim_type: any, required: false,
+         key_quote: "Home Services technology platform is now ready for launch"}
+
+  - id: G14
+    title: Muthoot Microfin — CRISIL upgrade to AA-/Stable
+    url: https://nsearchives.nseindia.com/corporate/muthootmicrofin_09062026124248_Regulation30IntimationonUpgradeonCreditRatingSD.pdf
+    file: G14_muthoot_upgrade.pdf
+    sha256: 2f93e0855cb791851c0d1c369d619a4ec108d8430c1831387d50dd4a21811888
+    category: rating
+    company: {id: "GOLDEN:MUTHOOTMF", name: Muthoot Microfin Limited, nse_symbol: MUTHOOTMF, bse_code: "544055"}
+    why: Credit rating upgrade; long rationale that names the parent company
+    status: draft
+    expected:
+      - {signal_type: credit_rating, direction: positive, claim_type: fact,
+         key_quote: "have upgraded the credit ratings assigned to the Company"}
+
+  - id: G15
+    title: Mukka Proteins — CARE downgrade to BBB-; Negative
+    url: https://nsearchives.nseindia.com/corporate/MUKKA_26052026172709_Intimation_of_Credit_Rating_26-05-2026.pdf
+    file: G15_mukka_downgrade.pdf
+    sha256: f7f884e1c31af2417307a0d6917c99a1f6f5dc488452172c777b2d9f16389a30
+    category: rating
+    company: {id: "GOLDEN:MUKKA", name: Mukka Proteins Limited, nse_symbol: MUKKA, bse_code: "544135"}
+    why: Credit rating downgrade with negative outlook
+    status: draft
+    expected:
+      - {signal_type: credit_rating, direction: negative, claim_type: fact,
+         key_quote: "Downgraded from CARE BBB; Negative"}
+      - {signal_type: [cost_margin, credit_rating], direction: negative, claim_type: any,
+         required: false, key_quote: "elongation in the company’s working capital cycle"}
+
+  - id: G16
+    title: Praj Industries — Q1 FY27 earnings call transcript (18 pages)
+    url: https://nsearchives.nseindia.com/corporate/PRAJIND_18082026091626_Transcript_of_Analysts_call_18082026.pdf
+    file: G16_praj_transcript.pdf
+    sha256: 3b88d335f199c627b1fbd504e98928b8d49e4b610c8f23c92c439c11beb13dd4
+    category: transcript
+    company: {id: "GOLDEN:PRAJIND", name: Praj Industries Limited, nse_symbol: PRAJIND}
+    why: Transcript with mixed news (order backlog, slowdown, subdued margins, no margin guidance)
+    status: draft
+    expected:
+      - {signal_type: demand_commentary, direction: any, claim_type: any,
+         key_quote: "The order backlog as of June 30, 2026, is at INR 45.9 billion"}
+      - {signal_type: demand_commentary, direction: negative, claim_type: any,
+         key_quote: "continued to experience a slowdown in greenfield projects"}
+      - {signal_type: cost_margin, direction: negative, claim_type: any,
+         key_quote: "our margins were a little subdued"}
+      - {signal_type: cost_margin, direction: positive, claim_type: any, required: false,
+         key_quote: "we have seen 3% margin improvement only on the material cost"}
+      - {signal_type: management_guidance, direction: any, claim_type: any, required: false,
+         key_quote: "by end of this year, we should be able to see that break-even"}
+
+  - id: G17
+    title: TD Power Systems — Q1 FY27 earnings call transcript (18 pages)
+    url: https://nsearchives.nseindia.com/corporate/TDPOWERSYS_18082026131351_Transcript_-_sg.pdf
+    file: G17_tdpower_transcript.pdf
+    sha256: 5aa7bafa52b4d6bcde788fae4aa1dec01851180fa967f100f9cd22c590437882
+    category: transcript
+    company: {id: "GOLDEN:TDPOWERSYS", name: TD Power Systems Limited, nse_symbol: TDPOWERSYS}
+    why: Guidance revision, order inflow and capacity plans
+    status: draft
+    expected:
+      - {signal_type: management_guidance, direction: positive, claim_type: guidance,
+         key_quote: "we revised our guidance for FY '27 at INR2,600 crores"}
+      - {signal_type: demand_commentary, direction: positive, claim_type: any,
+         key_quote: "Order inflow during the quarter is INR7.34 billion"}
+      - {signal_type: demand_commentary, direction: any, claim_type: any, required: false,
+         key_quote: "Order book for the Manufacturing segment is INR22.08 billion"}
+      - {signal_type: capex_expansion, direction: positive, claim_type: any, required: false,
+         key_quote: "we are going to invest INR50 crores"}
+      - {signal_type: cost_margin, direction: any, claim_type: any, required: false,
+         key_quote: "EBITDA for the quarter is 19.34%"}
+
+  - id: G18
+    title: PB Fintech (Policybazaar) — Q1 FY27 earnings call transcript (16 pages)
+    url: https://nsearchives.nseindia.com/corporate/POLICYBZR_11082026194918_IntimationTranscriptofEarningsCallQ1FY27.pdf
+    file: G18_pbfintech_transcript.pdf
+    sha256: 60efdb28b3928a016d4fa5741f845e619e0f3594eb6354da95d3e7ab24a92db3
+    category: transcript
+    company: {id: "GOLDEN:POLICYBZR", name: PB Fintech Limited, nse_symbol: POLICYBZR}
+    why: Long conversational transcript; growth and margin statements, vague targets
+    status: draft
+    expected:
+      - {signal_type: cost_margin, direction: positive, claim_type: any,
+         key_quote: "PAT margin improved from 6% to 9% year-on-year"}
+      - {signal_type: [demand_commentary, cost_margin], direction: positive, claim_type: any,
+         required: false, key_quote: "consolidated operating revenue grew 40% to ₹1,888 Cr"}
+      - {signal_type: demand_commentary, direction: positive, claim_type: any, required: false,
+         key_quote: "Our quarterly premium grew 46% year-on-year to ₹1,637 Cr"}
+
+  - id: G19
+    title: Raymond — Q1 FY27 investor presentation (35 slides, some image-only)
+    url: https://nsearchives.nseindia.com/corporate/RAYMOND_07082026164559_RLInvestorPPTsd.pdf
+    file: G19_raymond_ppt.pdf
+    sha256: bd86f8ff059816b451e7d9c2eb1dca3086772904b4e52a88edcae6c57da069db
+    category: presentation
+    company: {id: "GOLDEN:RAYMOND", name: Raymond Limited, nse_symbol: RAYMOND}
+    why: Slide text (fragmented), order book, margin commentary
+    status: draft
+    expected:
+      - {signal_type: demand_commentary, direction: positive, claim_type: any,
+         key_quote: "ORDER BOOK VALUE ₹5,960+ Cr"}
+      - {signal_type: cost_margin, direction: positive, claim_type: any,
+         key_quote: "EBITDA margins expanded driven by volume growth"}
+      - {signal_type: [demand_commentary, cost_margin], direction: positive, claim_type: any,
+         required: false, key_quote: "Q1FY27 witnessed a robust growth of 40% vs PY"}
+
+  - id: G20
+    title: Rajshree Polypack — Q1 FY27 investor presentation (32 slides)
+    url: https://nsearchives.nseindia.com/corporate/RPPL_05082026210001_RPPL_InvestorPresentationQ1FY27.pdf
+    file: G20_rajshree_ppt.pdf
+    sha256: 7e4f6009fc2a7b0b5a2c1ed3095630fd494980f7616f0875ab04903910b0527b
+    category: presentation
+    company: {id: "GOLDEN:RPPL", name: Rajshree Polypack Limited, nse_symbol: RPPL}
+    why: Presentation with mostly company claims and industry context (not company facts)
+    status: draft
+    expected:
+      - {signal_type: demand_commentary, direction: positive, claim_type: company_claim,
+         key_quote: "Our performance reflects sustained customer demand"}
+      - {signal_type: capex_expansion, direction: any, claim_type: any, required: false,
+         key_quote: "27,000 MTPA Coating capacity"}

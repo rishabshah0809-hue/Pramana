@@ -40,11 +40,16 @@ def setup_checks() -> list[Check]:
         )
 
     source = key_source()
-    if source == ".env":
-        checks.append(Check("Keys", True, "Using the .env file (no keys are needed yet)"))
-    elif source:
-        checks.append(Check("Keys", True, "Using Streamlit secrets (no keys are needed yet)"))
+    where = ".env file" if source == ".env" else ("Streamlit secrets" if source else None)
+    from app.adapters.registry import AI_PROVIDERS
+    from app.keys import get_key
+
+    missing = [p.name for p in AI_PROVIDERS.values() if not get_key(p.key_name)]
+    if not missing:
+        checks.append(Check("Keys", True, f"Groq and Gemini keys found ({where})"))
     else:
-        checks.append(Check("Keys", True, "No keys set up yet — none are needed for delayed prices"))
+        checks.append(Check("Keys", False,
+                            f"No key for {', '.join(missing)}. What to do: paste it into .env "
+                            f"(see README). Until then the AI steps wait in the queue."))
 
     return checks
