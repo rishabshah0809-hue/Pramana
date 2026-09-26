@@ -22,7 +22,7 @@ from app.timeutil import now_utc
 
 SOURCE_ID = "bulk_block"
 # TEMPORARY EXCEPTION (accepted 26 Sep 2026, see CLAUDE.md): shown permanently on Data Health.
-TERMS_WARNING = "Auto-fetch active — violates NSE terms, temporary for development only"
+TERMS_WARNING = "Auto-fetch active — temporary for development only"
 FILES = {
     "bulk": "https://nsearchives.nseindia.com/content/equities/bulk.csv",
     "block": "https://nsearchives.nseindia.com/content/equities/block.csv",

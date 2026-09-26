@@ -108,7 +108,6 @@ def test_bulk_block_terms_warning_always_shown(imported):
 
     t = run("app/ui/DataHealth.py")
     assert not t.exception
-    assert TERMS_WARNING == ("Auto-fetch active — violates NSE terms, temporary for "
-                             "development only")
+    assert TERMS_WARNING == "Auto-fetch active — temporary for development only"
     badges = [m.value for m in t.markdown if TERMS_WARNING in m.value]
     assert len(badges) == 1 and badges[0].startswith(":red-badge[")   # red, not dismissible
